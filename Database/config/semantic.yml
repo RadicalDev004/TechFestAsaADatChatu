@@ -1,0 +1,30 @@
+fact: entries
+time_col: "CAST(date_of_admission AS DATE)"
+
+measures:
+  encounters: "COUNT(*)"
+  patients: "COUNT(DISTINCT patient_name_key)"
+  avg_bill: "AVG(CAST(billing_amount AS DOUBLE))"
+  total_bill: "SUM(CAST(billing_amount AS DOUBLE))"
+
+dimensions:
+  date: "CAST(date_of_admission AS DATE)"
+  month: "date_trunc('month', CAST(date_of_admission AS DATE))"
+  quarter: "date_trunc('quarter', CAST(date_of_admission AS DATE))"
+  year: "date_trunc('year', CAST(date_of_admission AS DATE))"
+  age: "age"
+  gender: "gender"
+  blood_type: "blood_type"
+  condition: "medical_condition"
+  doctor: "doctor"
+  hospital: "hospital"
+  insurance: "insurance_provider"
+  admit_type: "admission_type"
+  patient: "patient_name"
+  patient_key: "patient_name_key"
+
+synonyms:
+  admissions: encounters
+  cost: total_bill
+  spend: total_bill
+  patient_name: patient
