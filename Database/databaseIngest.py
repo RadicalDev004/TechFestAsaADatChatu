@@ -45,10 +45,10 @@ def ingestion():
     disp, key = zip(*df["name"].map(_norm_name))
     df["patient_name"] = list(disp)
 
-    # cheie generată după numele normalizat (fără diacritice)
+    # key generated after the normalized name (without diacritics)
     df["patient_id"] = [ _gen_id_from_name(k) for k in key ]
 
-    # nu mai păstrăm coloana 'name'
+    # we no longer keep the 'name' column
     df.drop(columns=["name"], inplace=True)
 
     # drop duplicate names entirely (keep only unique patient names)
@@ -67,7 +67,7 @@ def ingestion():
     con.execute("DROP TABLE IF EXISTS entries;")
     con.execute("CREATE TABLE entries AS SELECT * FROM df;")
     con.execute("CREATE OR REPLACE VIEW vw_entries AS SELECT * FROM entries;")
-    # index pe cheie generată
+    # index on generated key
     con.execute("CREATE INDEX IF NOT EXISTS idx_entries_patientid ON entries(patient_id);")
 
     total = con.execute("SELECT COUNT(*) FROM vw_entries;").fetchone()[0]
