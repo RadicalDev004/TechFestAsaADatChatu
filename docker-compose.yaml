@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tech_fest_app
+    ports:
+      - "8000:5000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    restart: unless-stopped

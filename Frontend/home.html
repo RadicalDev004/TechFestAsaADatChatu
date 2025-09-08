@@ -65,10 +65,27 @@
 
 
     <!-- Upload form -->
-    <form action="/api/storage/upload" method="post" enctype="multipart/form-data">
-      <input type="file" name="file" required>
-      <button type="submit">Upload</button>
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">Upload</button>
     </form>
   </div>
 </body>
+
+<script>
+async function uploadFile() {
+  const fileInput = document.getElementById("fileInput");
+  const file = fileInput.files[0];
+
+  const formData = new FormData();
+  formData.append("myFile", file);
+
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const result = await response.json();
+  console.log(result);
+}
+</script>
 </html>

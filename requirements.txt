@@ -9,3 +9,4 @@ PyYAML~=6.0.2
 requests~=2.32.4
 python-dotenv~=1.1.1
 firebase_admin
+hypercorn
