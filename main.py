@@ -33,7 +33,7 @@ def healthz():
 async def handle_request(full_path: str, request: Request):
     path = f"/{full_path}" if full_path else "/"
 
-    # ✅ Default route: redirect / -> /auth/register
+    #Default route: redirect / -> /auth/register
     if path == "/":
         return RedirectResponse(url="/auth/index", status_code=303)
 
