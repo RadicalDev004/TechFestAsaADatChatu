@@ -16,9 +16,9 @@ def _norm_name(s):
 
 def _gen_id_from_name(name_key: str | None, length: int = 16) -> str | None:
     """
-    Generează un ID stabil din numele normalizat (fără diacritice, lowercase).
-    Folosește SHA-256 și taie la 'length' hex chars (implicit 16).
-    Pentru name_key None returnează None.
+    Generates a stable ID from the normalized name (without diacritics, lowercase).
+    Uses SHA-256 and truncates to 'length' hex chars (default 16).
+    For name_key None, returns None.
     """
     if not name_key:
         return None
