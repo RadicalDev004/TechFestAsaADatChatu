@@ -80,8 +80,8 @@ def ingestion():
         # normalize (disp/key)
         cdisp, ckey = zip(*hospital_first.map(_norm_name))
         df["clinic_name"] = list(cdisp)
-        # shorter clinic_id (12 hex), from the key without diacritics
-        df["clinic_id"] = [_gen_id_from_name(k, length=12) for k in ckey]
+        # shorter clinic_id (6 hex), from the key without diacritics
+        df["clinic_id"] = [_gen_id_from_name(k, length=6) for k in ckey]
         # optionally, we remove the original 'hospital' column so as not to duplicate the information
         df.drop(columns=["hospital"], inplace=True)
     else:
