@@ -3,14 +3,14 @@ from firebase_admin import credentials, storage
 
 cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred, {
-    'storageBucket': 'techfestproj.appspot.com'
+    'storageBucket': 'techfestproj.firebasestorage.app'
 })
 
 bucket = storage.bucket()
 
-def upload_to_firebase(id, file_name):
-    blob = bucket.blob(f"{id}/{file_name}")
-    blob.upload_from_filename(file_name)
+def upload_to_firebase(id, file):
+    blob = bucket.blob(f"{id}/{file.filename}")
+    blob.upload_from_file(file.file, content_type=file.content_type)
 
 def download_from_firebase(id, file_name):
     blob = bucket.blob(f"{id}/{file_name}")

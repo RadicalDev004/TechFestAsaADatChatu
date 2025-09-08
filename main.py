@@ -5,9 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from Backend.utils.router import Router
 from Backend.api.auth import router as auth_router
+from Backend.api.uploadFile import router as upload_router
 from starlette.responses import Response, HTMLResponse, RedirectResponse, StreamingResponse
 
-app = FastAPI(title="Clinic Auth – MVP")
+app = FastAPI(title="Clinic Auth - MVP")
 
 # CORS
 app.add_middleware(
@@ -19,7 +20,8 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(auth_router, prefix="/api/auth")
+app.include_router(auth_router)
+app.include_router(upload_router)
 
 # Our dynamic router
 router = Router()
@@ -58,12 +60,3 @@ async def handle_request(full_path: str, request: Request):
 
     # dict / pydantic / etc. -> let FastAPI serialize
     return result
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000)),
-        reload=True,
-    )
