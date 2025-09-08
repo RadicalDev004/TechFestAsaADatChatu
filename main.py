@@ -20,8 +20,8 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(auth_router, prefix="/api/auth")
-app.include_router(upload_router, prefix="/api/upload")
+app.include_router(auth_router)
+app.include_router(upload_router)
 
 # Our dynamic router
 router = Router()

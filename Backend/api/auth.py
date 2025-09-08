@@ -7,7 +7,7 @@ from ..repository.clinic_repo import create_clinic, validate_credentials
 from ..core.security import create_clinic_token
 from ..core.deps import get_current_clinic
 
-router = APIRouter(prefix="/auth/clinic", tags=["auth-clinic"])
+router = APIRouter(prefix="/api/auth", tags=["auth-clinic"])
 
 @router.post("/register", response_model=ClinicRegisterResponse, status_code=201)
 def register_clinic(body: ClinicRegisterRequest):
