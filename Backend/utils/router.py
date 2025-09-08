@@ -4,6 +4,7 @@ import os
 import sys
 import inspect
 from typing import List, Tuple, Union, Optional, Any
+from starlette.responses import Response
 
 class Router:
     def __init__(self):
@@ -93,9 +94,11 @@ class Router:
         # Normalize: allow string or (string, status)
         if isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], str) and isinstance(result[1], int):
             return result
-        elif isinstance(result, str):
+        elif isinstance(result, (str, bytes)):
+            return result
+        elif isinstance(result, Response):
             return result
         else:
             # If controller returned something else (e.g., dict/Response), let FastAPI handle it upstream.
             # We'll bubble it up by encoding as string (simple fallback).
-            return str(result)
+            return result
