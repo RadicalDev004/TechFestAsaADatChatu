@@ -249,7 +249,81 @@
     }
 
     /* Utility */
+    
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    /* Fullscreen overlay additions */
+.chat-panel.fullscreen {
+  inset: 0; width: 100vw; height: 100vh; max-height: none;
+  border-radius: 0; box-shadow: none; border: none;
+  background: linear-gradient(135deg, rgba(255,107,107,0.08), rgba(255,138,61,0.08)), var(--card);
+  z-index: 60;
+}
+.chat-head .spacer { flex: 1; }
+.fs-btn {
+  border: none; cursor: pointer; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--primary));
+  padding: 10px 12px; border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(255,138,61,0.35);
+}
+
+/* Chat layout: sidebar + main */
+.chat-layout { display: grid; grid-template-columns: 1fr; min-height: 0; }
+.chat-panel.fullscreen .chat-layout { grid-template-columns: 300px 1fr; }
+
+/* Sidebar (hidden when not fullscreen) */
+.sidebar { display: none; border-right: 1px solid rgba(255,107,107,0.2); background: #fff; overflow: auto; }
+.chat-panel.fullscreen .sidebar { display: flex; flex-direction: column; align-items: flex-start; padding: 8px; gap: 6px; }
+.sidebar-head { padding: 12px; border-bottom: 1px solid rgba(255,107,107,0.2); background: #fff7f5; width: 100%; }
+.new-chat-btn {
+  width: 100%; border: none; cursor: pointer; font-weight: 800; color: #fff;
+  border-radius: 10px; padding: 10px 12px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+.conv-list { list-style: none; margin: 0; padding: 8px; display: grid; gap: 8px; }
+.conv-btn {
+  width: 100%; text-align: left; border: 2px solid transparent; padding: 10px 12px;
+  border-radius: 12px; background: #e1e1e1; cursor: pointer; font-weight: 700; color: var(--text);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.conv-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.06); }
+.conv-btn.active {
+  background: linear-gradient(135deg, rgba(255,107,107,0.18), rgba(255,138,61,0.18));
+  border-color: rgba(255,107,107,0.5);
+  box-shadow: 0 10px 22px rgba(255,107,107,0.25);
+}
+
+/* Main chat area tweaks for grid */
+.chat-main { display: grid; grid-template-rows: 1fr auto; min-height: 0; }
+
+  .card {
+  position: relative;
+}
+.card-actions {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none; /* allow clicks only on buttons */
+}
+.card-actions button {
+  pointer-events: all;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  color: var(--text);
+  font-size: 14px;
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: background 0.2s;
+}
+.card-actions button:hover {
+  background: var(--accent);
+  color: white;
+}
+
   </style>
 </head>
 <body>
@@ -290,22 +364,32 @@
   <button class="fab" id="fab" aria-label="Open AI Assistant">✦</button>
 
   <!-- AI Chat Panel (local div) -->
-  <section class="chat-panel" id="chatPanel" aria-labelledby="chatTitle" aria-hidden="true">
-    <header class="chat-head">
-      <span class="status-dot" aria-hidden="true"></span>
-      <div id="chatTitle" class="chat-title">Smart Librarian – AI Assistant</div>
-    </header>
-    <div class="chat-body" id="chatBody">
-      <div class="msg">
-        <div class="bubble ai">Hi! I’m your local assistant. Ask me to find or summarize a document.</div>
+<section class="chat-panel" id="chatPanel" aria-labelledby="chatTitle" aria-hidden="true" role="dialog">
+  <header class="chat-head">
+    <span class="status-dot" aria-hidden="true"></span>
+    <div id="chatTitle" class="chat-title">Smart Librarian – AI Assistant</div>
+    <div class="spacer"></div>
+    <button class="fs-btn" id="fsBtn" type="button" aria-pressed="false" aria-label="Toggle fullscreen">⤢ Fullscreen</button>
+  </header>
+
+  <div class="chat-layout">
+    <aside class="sidebar" id="chatSidebar" aria-label="Conversation list">
+      <div class="sidebar-head">
+        <button class="new-chat-btn" id="newChatBtn" type="button">+ New Chat</button>
       </div>
+      <ul class="conv-list" id="convList"></ul>
+    </aside>
+
+    <div class="chat-main">
+      <div class="chat-body" id="chatBody"></div>
+      <form class="chat-input" id="chatForm">
+        <label class="sr-only" for="chatText">Message</label>
+        <input id="chatText" autocomplete="off" placeholder="Type a message…" />
+        <button class="send-btn" type="submit">Send</button>
+      </form>
     </div>
-    <form class="chat-input" id="chatForm">
-      <label class="sr-only" for="chatText">Message</label>
-      <input id="chatText" autocomplete="off" placeholder="Type a message…" />
-      <button class="send-btn" type="submit">Send</button>
-    </form>
-  </section>
+  </div>
+</section>
 
   <script>
     // --- Document Grid Logic ---
@@ -314,28 +398,52 @@
     const emptyState = document.getElementById('emptyState');
 
     function renderDocs() {
-      docsGrid.innerHTML = '';
-      if (docs.length === 0) {
-        emptyState.style.display = 'block';
-        return;
+  docsGrid.innerHTML = '';
+  if (docs.length === 0) {
+    emptyState.style.display = 'block';
+    return;
+  }
+  emptyState.style.display = 'none';
+
+  for (const [index, d] of docs.entries()) {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-actions">
+        <button class="download-btn" title="Download">⬇</button>
+        <button class="delete-btn" title="Delete">✕</button>
+      </div>
+      <div class="thumb"><div class="doc-icon" aria-hidden="true"></div></div>
+      <div class="card-body">
+        <div class="doc-title">${d.title}</div>
+        <div class="doc-meta">${d.size} • ${d.date}</div>
+      </div>
+    `;
+
+    // Download handler (replace with actual download endpoint if needed)
+    card.querySelector('.download-btn').addEventListener('click', (e) => {
+      e.stopPropagation(); // prevent card click
+      alert('Download file: ' + d.title);
+      // Example: window.location.href = `/api/download/${d.id}`;
+    });
+
+    // Delete handler
+    card.querySelector('.delete-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`Delete document "${d.title}"?`)) {
+        docs.splice(index, 1);
+        renderDocs();
+        // Optionally: fetch(`/api/delete/${d.id}`, { method: 'DELETE' });
       }
-      emptyState.style.display = 'none';
-      for (const d of docs) {
-        const card = document.createElement('article');
-        card.className = 'card';
-        card.innerHTML = `
-          <div class="thumb"><div class="doc-icon" aria-hidden="true"></div></div>
-          <div class="card-body">
-            <div class="doc-title">${d.title}</div>
-            <div class="doc-meta">${d.size} • ${d.date}</div>
-          </div>
-        `;
-        card.addEventListener('click', () => {
-          alert('Open document: ' + d.title);
-        });
-        docsGrid.appendChild(card);
-      }
-    }
+    });
+
+    card.addEventListener('click', () => {
+      alert('Open document: ' + d.title);
+    });
+
+    docsGrid.appendChild(card);
+  }
+}
 
     function fileSizeString(bytes) {
       const units = ['B','KB','MB','GB'];
@@ -386,61 +494,119 @@
     renderDocs();
 
     // --- AI Chat (local div activation) ---
-    const fab = document.getElementById('fab');
-    const chatPanel = document.getElementById('chatPanel');
-    const chatBody = document.getElementById('chatBody');
-    const chatForm = document.getElementById('chatForm');
-    const chatText = document.getElementById('chatText');
+const fab = document.getElementById('fab');
+const chatPanel = document.getElementById('chatPanel');
+const chatBody = document.getElementById('chatBody');
+const chatForm = document.getElementById('chatForm');
+const chatText = document.getElementById('chatText');
+const fsBtn = document.getElementById('fsBtn');
+const convList = document.getElementById('convList');
+const newChatBtn = document.getElementById('newChatBtn');
 
-    function setChatActive(active) {
-      chatPanel.classList.toggle('active', active);
-      chatPanel.setAttribute('aria-hidden', String(!active));
-      if (active) chatText.focus();
-    }
+function setChatActive(active) {
+  chatPanel.classList.toggle('active', active);
+  chatPanel.setAttribute('aria-hidden', String(!active));
+  if (active) chatText.focus();
+}
 
-    fab.addEventListener('click', () => {
-      const isActive = chatPanel.classList.contains('active');
-      setChatActive(!isActive);
-    });
+function setFullscreen(on) {
+  chatPanel.classList.toggle('fullscreen', on);
+  fsBtn.setAttribute('aria-pressed', String(on));
+  fsBtn.textContent = on ? '⤢ Exit Fullscreen' : '⤢ Fullscreen';
+}
 
-    // A tiny local echo bot to demonstrate the UI
-    chatForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = chatText.value.trim();
-      if (!text) return;
-      appendMsg('me', text);
-      chatText.value = '';
+fab.addEventListener('click', () => {
+  const isActive = chatPanel.classList.contains('active');
+  setChatActive(!isActive);
+});
+fsBtn.addEventListener('click', () => setFullscreen(!chatPanel.classList.contains('fullscreen')));
 
-      // Simulated AI response
-      setTimeout(() => {
-        const reply = generateLocalReply(text);
-        appendMsg('ai', reply);
-      }, 300);
-    });
+// Conversation state
+let conversations = [
+  { id: cryptoRandomId(), title: 'Welcome', messages: [ { who: 'ai', text: 'Hi! I’m your local assistant. Ask me to find or summarize a document.' } ] }
+];
+let currentIndex = 0;
 
-    function appendMsg(who, text) {
-      const msg = document.createElement('div');
-      msg.className = 'msg';
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble ' + (who === 'ai' ? 'ai' : 'me');
-      bubble.textContent = text;
-      msg.appendChild(bubble);
-      chatBody.appendChild(msg);
-      chatBody.scrollTop = chatBody.scrollHeight;
-    }
+function cryptoRandomId(){ return Math.random().toString(36).slice(2,10); }
 
-    function generateLocalReply(q) {
-      // Very naive local logic just for demo; replace with real backend as needed.
-      const lower = q.toLowerCase();
-      if (lower.includes('find') || lower.includes('search')) {
-        if (docs.length === 0) return 'You have no documents yet. Try “Add Document”.';
-        const top = docs[0];
-        return `I can help search once connected to the server. Meanwhile, your most recent document is “${top.title}”.`;
-      }
-      if (lower.includes('hello') || lower.includes('hi')) return 'Hello! What would you like to do with your library today?';
-      if (lower.includes('upload')) return 'Click “Add Document” to choose a file. It uploads to /api/upload.';
-      return 'Got it. (This is a local demo assistant. Connect me to your backend for real AI.)';
-    }
+function renderConversations(){
+  convList.innerHTML = '';
+  conversations.forEach((c, idx) => {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'conv-btn' + (idx === currentIndex ? ' active' : '');
+    btn.textContent = c.title;
+    btn.addEventListener('click', () => { currentIndex = idx; renderConversations(); renderMessages(); });
+    li.appendChild(btn);
+    convList.appendChild(li);
+  });
+}
+
+function renderMessages(){
+  chatBody.innerHTML = '';
+  const msgs = conversations[currentIndex].messages;
+  for (const m of msgs){ appendMsg(m.who, m.text, false); }
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+newChatBtn.addEventListener('click', () => {
+  const name = prompt("Enter a name for the new chat:", `Chat ${conversations.length + 1}`);
+  if (!name) return; // cancel if user presses Cancel or leaves blank
+
+  conversations.unshift({
+    id: cryptoRandomId(),
+    title: name,
+    messages: [
+      { who: 'ai', text: 'New chat started. How can I help?' }
+    ]
+  });
+  currentIndex = 0;
+  renderConversations();
+  renderMessages();
+});
+
+// Local echo demo
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = chatText.value.trim();
+  if (!text) return;
+  pushMsg('me', text);
+  chatText.value = '';
+  setTimeout(() => { const reply = generateLocalReply(text); pushMsg('ai', reply); }, 300);
+});
+
+function pushMsg(who, text){
+  conversations[currentIndex].messages.push({ who, text });
+  appendMsg(who, text, true);
+}
+
+function appendMsg(who, text, scroll){
+  const msg = document.createElement('div');
+  msg.className = 'msg';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ' + (who === 'ai' ? 'ai' : 'me');
+  bubble.textContent = text;
+  msg.appendChild(bubble);
+  chatBody.appendChild(msg);
+  if (scroll) chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function generateLocalReply(q) {
+  const lower = q.toLowerCase();
+  if (lower.includes('find') || lower.includes('search')) {
+    if (docs.length === 0) return 'You have no documents yet. Try “Add Document”.';
+    const top = docs[0];
+    return `I can help search once connected to the server. Meanwhile, your most recent document is “${top.title}”.`;
+  }
+  if (lower.includes('hello') || lower.includes('hi')) return 'Hello! What would you like to do with your library today?';
+  if (lower.includes('upload')) return 'Click “Add Document” to choose a file. It uploads to /api/upload.';
+  return 'Got it. (This is a local demo assistant. Connect me to your backend for real AI.)';
+}
+
+// Initial render
+renderConversations();
+renderMessages();
   </script>
 </body>
 </html>
