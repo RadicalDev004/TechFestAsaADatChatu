@@ -1,12 +1,14 @@
 import os
 import bcrypt
 from typing import Optional
-
-
+from Backend.repository.clinic_repo import validate_credentials
+from Backend.core.security import create_clinic_token
+from Database.db_register import get_clinic_name
 from fastapi import Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
-
+COOKIE_NAME = "access_token"
+IS_SECURE = False
 class AuthController:
     def index(self,):
         current_dir = os.path.dirname(__file__)
@@ -16,4 +18,36 @@ class AuthController:
         with open(template_path, 'r', encoding='utf-8') as file:
             html_content = file.read()
         return HTMLResponse(content=html_content, status_code=200)
+    
 
+    async def login(self, request: Request):
+        #return "<h1>AAAA</h1>"
+        if request.method != 'POST':
+            return RedirectResponse(url="/auth/index")
+        
+        form = await request.form()
+        username = form.get('username') or ''
+        password = form.get('password') or ''
+        print(f"username={username}, password={password}")
+
+        if validate_credentials(username, password):
+            token = create_clinic_token(username, get_clinic_name(username), plan="standard")
+            resp = RedirectResponse(url="/home/index", status_code=302)
+            resp.set_cookie(
+                COOKIE_NAME,
+                token,
+                httponly=True,
+                secure=IS_SECURE,
+                samesite="Lax",
+                max_age=60 * 60 * 24,  # cookie lifetime (not JWT lifetime)
+                path="/",
+            )
+            
+            return resp
+        
+        return HTMLResponse("""
+            <script>
+              alert("Invalid username or password");
+              window.location.href = "/auth/index";
+            </script>
+        """)
