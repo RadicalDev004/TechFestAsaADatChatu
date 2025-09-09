@@ -14,6 +14,7 @@ def register_clinic(body: ClinicRegisterRequest):
     clinic = create_clinic(name=body.name, password=body.password)
     return ClinicRegisterResponse(clinic_id=clinic.id, name=clinic.name)
 
+
 @router.post("/token", response_model=TokenResponse)
 def issue_token(body: ClinicTokenRequest):
     clinic = validate_credentials(body.clinic_id, body.password)

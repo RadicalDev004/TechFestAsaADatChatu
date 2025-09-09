@@ -26,12 +26,12 @@ class AuthController:
             return RedirectResponse(url="/auth/index")
         
         form = await request.form()
-        username = form.get('username') or ''
+        id = form.get('username') or ''
         password = form.get('password') or ''
-        print(f"username={username}, password={password}")
+        print(f"id={id}, password={password}")
 
-        if validate_credentials(username, password):
-            token = create_clinic_token(username, get_clinic_name(username), plan="standard")
+        if validate_credentials(id, password):
+            token = create_clinic_token(clinic_id = id, clinic_name = get_clinic_name(id), plan="standard")
             resp = RedirectResponse(url="/home/index", status_code=302)
             resp.set_cookie(
                 COOKIE_NAME,

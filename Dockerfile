@@ -4,6 +4,9 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Create app user early, so we can chown during COPY
+RUN useradd -m -u 1000 -s /bin/bash appuser
+
 WORKDIR /app
 
 # Minimal OS deps
@@ -12,21 +15,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps
-COPY requirements.txt .
-# Make sure requirements.txt includes: fastapi and hypercorn
-# (You can remove gunicorn/uvicorn/eventlet from it.)
+COPY --chown=appuser:appuser requirements.txt .
 RUN pip install --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
-# App code
-COPY . .
+# App code (owned by appuser)
+COPY --chown=appuser:appuser . .
 
-# (optional) run as non-root
-RUN useradd -m appuser
+# Make sure the data dir exists and is writable
+RUN mkdir -p /app/data && chown -R appuser:appuser /app
+
 USER appuser
 
 EXPOSE 5000
-
-# Hypercorn runs ASGI apps directly
-# Adjust "main:app" if your module/object differs
-CMD ["hypercorn", "main:app", "--bind", "0.0.0.0:5000", "--workers", "4", "--access-log", "-"]
+CMD ["hypercorn", "main:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--access-log", "-"]
