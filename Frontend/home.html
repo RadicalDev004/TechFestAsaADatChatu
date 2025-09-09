@@ -1,90 +1,446 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Home – Smart Librarian</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
+    :root {
+      --bg: #fff7f5;                /* very light warm background */
+      --card: #ffffff;              /* card surface */
+      --text: #2a2a2a;              /* primary text */
+      --muted: #6b7280;             /* secondary text */
+      --primary: #ff6b6b;           /* light red */
+      --primary-700: #e25555;       /* darker red */
+      --accent: #ff8a3d;            /* orange */
+      --accent-700: #e4762e;        /* darker orange */
+      --ring: rgba(255, 107, 107, 0.35);
+      --shadow: 0 10px 30px rgba(255, 107, 107, 0.15), 0 4px 12px rgba(0,0,0,0.05);
+      --radius-lg: 16px;
+      --radius-xl: 22px;
     }
-    .container {
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 90% -10%, rgba(255,138,61,0.12), transparent 60%),
+                  radial-gradient(1200px 800px at -10% 10%, rgba(255,107,107,0.12), transparent 60%),
+                  var(--bg);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px clamp(16px, 4vw, 40px) 120px; /* bottom padding so FAB doesn't cover content */
+    }
+
+    /* Header */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0.6));
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px clamp(16px, 4vw, 40px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 12px;
+      background: conic-gradient(from 210deg, var(--primary), var(--accent));
+      box-shadow: 0 8px 24px rgba(255,138,61,0.35);
+    }
+    .brand-name { font-size: 1.1rem; }
+
+    .spacer { flex: 1; }
+
+    .link {
+      color: var(--accent-700);
+      font-weight: 600;
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 12px;
+      transition: background 160ms ease, transform 120ms ease;
+    }
+    .link:hover { background: rgba(255,138,61,0.12); }
+
+    /* Title + actions */
+    .header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: end;
+      margin: 24px 0 14px;
+    }
+    .title {
+      font-size: clamp(1.2rem, 1rem + 1.6vw, 2.2rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+    }
+    .subtitle { color: var(--muted); margin-top: 8px; }
+
+    .actions { display: flex; gap: 10px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 160ms ease;
+      box-shadow: var(--shadow);
+    }
+    .btn:active { transform: translateY(1px) scale(0.995); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: white;
+    }
+    .btn-primary:hover { filter: brightness(1.05); }
+
+    .btn-outline {
       background: #fff;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      width: 400px;
+      color: var(--accent-700);
+      border: 2px solid rgba(255,138,61,0.25);
+    }
+    .btn-outline:hover { background: rgba(255,138,61,0.07); }
+
+    /* Grid */
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 140px auto;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(255, 107, 107, 0.25), 0 6px 18px rgba(0,0,0,0.08); }
+    .thumb {
+      background: linear-gradient(135deg, rgba(255,107,107,0.2), rgba(255,138,61,0.2));
+      display: grid; place-items: center;
+    }
+    .thumb > .doc-icon {
+      width: 46px; height: 58px; border-radius: 6px;
+      background: linear-gradient(180deg, #fff, #ffe2da);
+      border: 2px solid rgba(255,107,107,0.35);
+      position: relative;
+      box-shadow: 0 6px 14px rgba(255, 107, 107, 0.25);
+    }
+    .doc-icon::after {
+      content: ""; position: absolute; right: -6px; top: -6px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 4px 10px rgba(255,138,61,0.45);
+    }
+    .card-body { padding: 14px; }
+    .doc-title { font-weight: 800; line-height: 1.2; }
+    .doc-meta { color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
+
+    /* Empty state */
+    .empty {
+      margin: 32px 0; padding: 18px; border-radius: var(--radius-lg);
+      border: 2px dashed rgba(255,107,107,0.3);
+      background: rgba(255,107,107,0.06);
+      color: var(--muted);
       text-align: center;
     }
-    h1 {
-      margin-bottom: 1rem;
+
+    /* Hidden file input */
+    input[type="file"] { display: none; }
+
+    /* Floating Action Button (AI Chat) */
+    .fab {
+      position: fixed;
+      right: 22px; bottom: 22px;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: none; cursor: pointer;
+      color: white; font-size: 22px; font-weight: 800;
+      background: radial-gradient(circle at 30% 30%, var(--accent), var(--primary));
+      box-shadow: 0 18px 38px rgba(255,107,107,0.45), 0 6px 16px rgba(0,0,0,0.12);
+      display: grid; place-items: center;
+      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      z-index: 50;
     }
-    a {
-      display: inline-block;
-      margin-top: 1rem;
-      color: #007bff;
-      text-decoration: none;
+    .fab:hover { transform: translateY(-2px) scale(1.03); filter: saturate(1.1); }
+
+    /* Chat Panel (local div) */
+    .chat-panel {
+      position: fixed; right: 16px; bottom: 96px;
+      width: min(720px, calc(100vw - 32px));
+      max-height: min(70vh, 660px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background: var(--card);
+      border-radius: 20px;
+      box-shadow: 0 22px 60px rgba(255,107,107,0.35), 0 10px 26px rgba(0,0,0,0.15);
+      border: 1px solid rgba(255,107,107,0.20);
+      transform: translateY(20px) scale(0.98);
+      opacity: 0; pointer-events: none;
+      transition: transform 200ms ease, opacity 200ms ease;
+      overflow: hidden;
+      z-index: 49;
     }
-    a:hover {
-      text-decoration: underline;
+    .chat-panel.active {
+      opacity: 1; pointer-events: auto;
+      transform: translateY(0) scale(1);
+      outline: 2px solid var(--ring);
     }
-    form {
-      margin-top: 1.5rem;
+    .chat-head {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, rgba(255,107,107,0.10), rgba(255,138,61,0.10));
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid rgba(255,107,107,0.2);
     }
-    input[type="file"] {
-      margin: 0.5rem 0;
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(255,138,61,0.18);
     }
-    button {
-      display: block;
-      width: 100%;
-      padding: 0.7rem;
-      background: #28a745;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      margin-top: 0.5rem;
-      cursor: pointer;
-      font-size: 1rem;
+    .chat-title { font-weight: 800; }
+    .chat-body {
+      padding: 14px; overflow: auto; background: linear-gradient(180deg, rgba(255,107,107,0.03), transparent);
     }
-    button:hover {
-      background: #218838;
+    .msg { display: grid; gap: 6px; margin: 10px 0; }
+    .bubble {
+      max-width: 75%; padding: 10px 12px; border-radius: 14px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
     }
+    .bubble.ai { background: #fff0ec; border: 1px solid rgba(255,107,107,0.25); }
+    .bubble.me { margin-left: auto; background: #fff7f0; border: 1px solid rgba(255,138,61,0.25); }
+    .chat-input {
+      display: flex; gap: 10px; padding: 12px; border-top: 1px solid rgba(255,107,107,0.2);
+      background: #fff;
+    }
+    .chat-input input {
+      flex: 1; padding: 12px 14px; border-radius: 12px; border: 2px solid rgba(255,107,107,0.25);
+      outline: none; font-size: 1rem;
+    }
+    .chat-input input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(255,138,61,0.12); }
+    .send-btn {
+      padding: 12px 16px; border-radius: 12px; border: none; cursor: pointer; font-weight: 800; color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--primary));
+      box-shadow: 0 10px 24px rgba(255,138,61,0.35);
+    }
+
+    /* Utility */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Welcome to the page</h1>
-    <p>You are now on the Home page.</p>
-
-    <a href="/auth/index">Go to Login</a><br>
-
-
-    <!-- Upload form -->
-    <input type="file" id="fileInput" />
-    <button onclick="uploadFile()">Upload</button>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div class="brand-name">Smart Librarian</div>
+      </div>
+      <div class="spacer"></div>
+      <a class="link" href="/auth/index">Go to Login</a>
+    </div>
   </div>
+
+  <main class="wrap">
+    <div class="header">
+      <div>
+        <div class="title">Your Documents</div>
+        <div class="subtitle">Keep everything neat and searchable. Add a new document or open an existing one.</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-outline" id="importBtn" type="button">Import</button>
+        <button class="btn btn-primary" id="addDocBtn" type="button">+ Add Document</button>
+        <input type="file" id="fileInput" accept="*/*" />
+      </div>
+    </div>
+
+    <div id="emptyState" class="empty" role="status" aria-live="polite" style="display:none;">
+      No documents yet. Click <strong>Add Document</strong> to get started.
+    </div>
+
+    <section class="docs-grid" id="docsGrid" aria-label="Documents Grid">
+      <!-- Cards will be injected here -->
+    </section>
+  </main>
+
+  <!-- Floating AI Chat Button -->
+  <button class="fab" id="fab" aria-label="Open AI Assistant">✦</button>
+
+  <!-- AI Chat Panel (local div) -->
+  <section class="chat-panel" id="chatPanel" aria-labelledby="chatTitle" aria-hidden="true">
+    <header class="chat-head">
+      <span class="status-dot" aria-hidden="true"></span>
+      <div id="chatTitle" class="chat-title">Smart Librarian – AI Assistant</div>
+    </header>
+    <div class="chat-body" id="chatBody">
+      <div class="msg">
+        <div class="bubble ai">Hi! I’m your local assistant. Ask me to find or summarize a document.</div>
+      </div>
+    </div>
+    <form class="chat-input" id="chatForm">
+      <label class="sr-only" for="chatText">Message</label>
+      <input id="chatText" autocomplete="off" placeholder="Type a message…" />
+      <button class="send-btn" type="submit">Send</button>
+    </form>
+  </section>
+
+  <script>
+    // --- Document Grid Logic ---
+    const docs = [];
+    const docsGrid = document.getElementById('docsGrid');
+    const emptyState = document.getElementById('emptyState');
+
+    function renderDocs() {
+      docsGrid.innerHTML = '';
+      if (docs.length === 0) {
+        emptyState.style.display = 'block';
+        return;
+      }
+      emptyState.style.display = 'none';
+      for (const d of docs) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="thumb"><div class="doc-icon" aria-hidden="true"></div></div>
+          <div class="card-body">
+            <div class="doc-title">${d.title}</div>
+            <div class="doc-meta">${d.size} • ${d.date}</div>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          alert('Open document: ' + d.title);
+        });
+        docsGrid.appendChild(card);
+      }
+    }
+
+    function fileSizeString(bytes) {
+      const units = ['B','KB','MB','GB'];
+      let i = 0; let n = bytes;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+    }
+
+    // --- Add / Import ---
+    const addDocBtn = document.getElementById('addDocBtn');
+    const importBtn = document.getElementById('importBtn');
+    const fileInput = document.getElementById('fileInput');
+
+    addDocBtn.addEventListener('click', () => fileInput.click());
+    importBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      // Optimistically add to grid
+      const now = new Date();
+      const doc = {
+        title: file.name,
+        size: fileSizeString(file.size || 0),
+        date: now.toLocaleDateString()
+      };
+      docs.unshift(doc);
+      renderDocs();
+
+      // Upload to your backend if available
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Upload failed');
+        const result = await res.json().catch(() => ({}));
+        console.log('Uploaded:', result);
+      } catch (err) {
+        console.warn(err);
+        alert('Upload failed. The document was added locally, but not uploaded.');
+      } finally {
+        fileInput.value = '';
+      }
+    });
+
+    // Initial render
+    renderDocs();
+
+    // --- AI Chat (local div activation) ---
+    const fab = document.getElementById('fab');
+    const chatPanel = document.getElementById('chatPanel');
+    const chatBody = document.getElementById('chatBody');
+    const chatForm = document.getElementById('chatForm');
+    const chatText = document.getElementById('chatText');
+
+    function setChatActive(active) {
+      chatPanel.classList.toggle('active', active);
+      chatPanel.setAttribute('aria-hidden', String(!active));
+      if (active) chatText.focus();
+    }
+
+    fab.addEventListener('click', () => {
+      const isActive = chatPanel.classList.contains('active');
+      setChatActive(!isActive);
+    });
+
+    // A tiny local echo bot to demonstrate the UI
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = chatText.value.trim();
+      if (!text) return;
+      appendMsg('me', text);
+      chatText.value = '';
+
+      // Simulated AI response
+      setTimeout(() => {
+        const reply = generateLocalReply(text);
+        appendMsg('ai', reply);
+      }, 300);
+    });
+
+    function appendMsg(who, text) {
+      const msg = document.createElement('div');
+      msg.className = 'msg';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + (who === 'ai' ? 'ai' : 'me');
+      bubble.textContent = text;
+      msg.appendChild(bubble);
+      chatBody.appendChild(msg);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function generateLocalReply(q) {
+      // Very naive local logic just for demo; replace with real backend as needed.
+      const lower = q.toLowerCase();
+      if (lower.includes('find') || lower.includes('search')) {
+        if (docs.length === 0) return 'You have no documents yet. Try “Add Document”.';
+        const top = docs[0];
+        return `I can help search once connected to the server. Meanwhile, your most recent document is “${top.title}”.`;
+      }
+      if (lower.includes('hello') || lower.includes('hi')) return 'Hello! What would you like to do with your library today?';
+      if (lower.includes('upload')) return 'Click “Add Document” to choose a file. It uploads to /api/upload.';
+      return 'Got it. (This is a local demo assistant. Connect me to your backend for real AI.)';
+    }
+  </script>
 </body>
-
-<script>
-async function uploadFile() {
-  const fileInput = document.getElementById("fileInput");
-  const file = fileInput.files[0];
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetch("/api/upload", {
-    method: "POST",
-    body: formData,
-  });
-
-  const result = await response.json();
-  console.log(result);
-}
-</script>
 </html>
