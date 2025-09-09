@@ -26,12 +26,12 @@ class AuthController:
             return RedirectResponse(url="/auth/index")
         
         form = await request.form()
-        id = form.get('username') or ''
+        email = form.get('email') or ''
         password = form.get('password') or ''
-        print(f"id={id}, password={password}")
+        print(f"id={email}, password={password}")
 
-        if validate_credentials(id, password):
-            token = create_clinic_token(clinic_id = id, clinic_name = get_clinic_name(id), plan="standard")
+        if validate_credentials(email, password):
+            token = create_clinic_token(clinic_id = email, clinic_name = get_clinic_name(email), plan="standard")
             resp = RedirectResponse(url="/home/index", status_code=302)
             resp.set_cookie(
                 COOKIE_NAME,
@@ -58,6 +58,7 @@ class AuthController:
         
         form = await request.form()
         clinic_name = form.get('username') or ''
+        email = form.get('email') or ''
         password = form.get('password')
 
         if not clinic_name or not password :
@@ -68,7 +69,7 @@ class AuthController:
                 </script>
             """
         
-        register_clinic(clinic_name, password)
+        register_clinic(clinic_name, email, password)
 
         return HTMLResponse("""
             <script>
