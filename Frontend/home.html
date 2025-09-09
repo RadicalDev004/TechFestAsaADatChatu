@@ -398,7 +398,6 @@
     const emptyState = document.getElementById('emptyState');
 
     function renderDocs() {
-  docsGrid.innerHTML = '';
   if (docs.length === 0) {
     emptyState.style.display = 'block';
     return;
@@ -420,11 +419,9 @@
       </div>
     `;
 
-    // Download handler (replace with actual download endpoint if needed)
     card.querySelector('.download-btn').addEventListener('click', (e) => {
-      e.stopPropagation(); // prevent card click
+      e.stopPropagation();
       alert('Download file: ' + d.title);
-      // Example: window.location.href = `/api/download/${d.id}`;
     });
 
     // Delete handler
@@ -478,7 +475,14 @@
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const res = await fetch('/api/upload', 
+        { 
+          method: 'POST', 
+          headers: {
+            "Authorization": `Bearer ${getTokenFromCookie()}`
+          },
+          body: formData 
+        });
         if (!res.ok) throw new Error('Upload failed');
         const result = await res.json().catch(() => ({}));
         console.log('Uploaded:', result);
@@ -604,7 +608,95 @@ function generateLocalReply(q) {
   return 'Got it. (This is a local demo assistant. Connect me to your backend for real AI.)';
 }
 
+function getTokenFromCookie() {
+  const tokenCookie = document.cookie
+    .split("; ")
+    .find(row => row.startsWith("access_token="));
+  return tokenCookie ? tokenCookie.split("=")[1] : null;
+}
+
+async function fetchFiles() {
+  const token = getTokenFromCookie();
+  if (!token) {
+    console.error("No access_token found in cookies!");
+    return [];
+  }
+
+  try {
+    const response = await fetch("/api/listFiles", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`HTTP error! ${response.status} - ${errText}`);
+    }
+
+    const data = await response.json();
+    const docs = data.files.map(f => ({
+    id: f.path,       // use full path as id (for download/delete endpoints)
+    title: f.name,    // just the filename
+    size: "",        // placeholder, unless backend sends metadata
+    date: ""         // placeholder, same here
+  }));
+  if(docs.length != 0) {
+    emptyState.style.display = 'none';
+  }
+  for (const [index, d] of docs.entries()) {
+    const card = document.createElement("article");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-actions">
+        <button class="download-btn" title="Download">⬇</button>
+        <button class="delete-btn" title="Delete">✕</button>
+      </div>
+      <div class="thumb"><div class="doc-icon" aria-hidden="true"></div></div>
+      <div class="card-body">
+        <div class="doc-title">${d.title}</div>
+        <div class="doc-meta">${d.size} • ${d.date}</div>
+      </div>
+    `;
+
+    // Download handler
+    card.querySelector(".download-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.location.href = `/api/download/${encodeURIComponent(d.id)}`;
+    });
+
+    // Delete handler
+    card.querySelector(".delete-btn").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (confirm(`Delete document "${d.title}"?`)) {
+        await fetch(`/api/delete/${encodeURIComponent(d.id)}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${getTokenFromCookie()}` }
+        });
+        renderDocs(); // reload grid
+      }
+    });
+
+    // Click handler (open document preview)
+    card.addEventListener("click", () => {
+      alert("Open document: " + d.title);
+    });
+
+    docsGrid.appendChild(card);
+  }
+    return data.files;
+  } catch (error) {
+    console.error("Error fetching files:", error);
+    return [];
+  }
+}
+
 // Initial render
+fetchFiles().then(files => {
+  files.forEach(file => console.log(file));
+});
 renderConversations();
 renderMessages();
   </script>
