@@ -36,7 +36,7 @@ class AuthController:
             resp.set_cookie(
                 COOKIE_NAME,
                 token,
-                httponly=True,
+                httponly=False,
                 secure=IS_SECURE,
                 samesite="Lax",
                 max_age=60 * 60 * 24,  # cookie lifetime (not JWT lifetime)

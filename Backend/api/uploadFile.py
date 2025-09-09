@@ -1,33 +1,52 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
-from ..models.schemas import (
-    ClinicRegisterRequest, ClinicRegisterResponse,
-    ClinicTokenRequest, TokenResponse, ClinicPrincipal
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from typing import Annotated
+from Backend.config.constants import MODEL_CONFIG, PROMPT_CONFIG, EXPLAIN_PROMPT
+from Backend.services.chatbot_service import create_agent
+from Database.db_history import (
+    ensure_tables,
+    create_conversation,
+    list_conversations,
+    get_conversation,
+    delete_conversation,
+    add_message,
+    list_messages,
+    title_from_text,
+    rename_conversation,
 )
-from ..repository.clinic_repo import create_clinic, validate_credentials
-from ..core.security import create_clinic_token
-from ..core.deps import get_current_clinic
+from Backend.models.schemas import (
+    ConversationOut,
+    MessageIn,
+    MessageOut,
+    ConversationWithMessages,
+)
+from Backend.core.deps import get_current_clinic
+from Backend.utils.tools import bots, is_image
 from Database.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase, delete_from_firebase
 
+
+CurrentClinic = Annotated[dict, Depends(get_current_clinic)]
 router = APIRouter(prefix = "/api", tags=["file-upload"])
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
-async def upload_to_firebase_placeholder(file: UploadFile = File(...)):
+async def upload_to_firebase_placeholder(current: CurrentClinic, file: UploadFile = File(...)):
     """
     Placeholder endpoint that receives a file and will later
     stream it to Firebase Storage.
 
     For now, we just acknowledge receipt.
     """
+    clinic_id = str(current["clinic_id"])
 
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
-    upload_to_firebase("test_id", file)
+    upload_to_firebase(clinic_id, file)
     return {
         "status": "accepted",
         "message": "Upload route reachable; Firebase integration pending.",
         "filename": file.filename,
         "content_type": file.content_type,
     }
+
 @router.delete("/delete/{file_name}", status_code=204)
 async def delete_file_from_firebase(file_name: str):
 
