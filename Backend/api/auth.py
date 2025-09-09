@@ -11,14 +11,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth-clinic"])
 
 @router.post("/register", response_model=ClinicRegisterResponse, status_code=201)
 def register_clinic(body: ClinicRegisterRequest):
-
-    clinic, secret = create_clinic(name=body.name)
-    return ClinicRegisterResponse(clinic_id=clinic.id, clinic_secret=secret)
+    clinic = create_clinic(name=body.name, password=body.password)
+    return ClinicRegisterResponse(clinic_id=clinic.id, name=clinic.name)
 
 @router.post("/token", response_model=TokenResponse)
 def issue_token(body: ClinicTokenRequest):
-
-    clinic = validate_credentials(body.clinic_id, body.clinic_secret)
+    clinic = validate_credentials(body.clinic_id, body.password)
     if not clinic:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bad credentials")
     token = create_clinic_token(clinic_id=clinic.id, clinic_name=clinic.name, plan=clinic.plan)
@@ -26,5 +24,4 @@ def issue_token(body: ClinicTokenRequest):
 
 @router.get("/me", response_model=ClinicPrincipal)
 def who_am_i(principal: dict = Depends(get_current_clinic)):
-
     return ClinicPrincipal(**principal)
