@@ -21,3 +21,13 @@ def download_all_from_firebase(id, local_dir):
     for blob in blobs:
         file_name = blob.name.split('/')[-1]
         blob.download_to_filename(f"{local_dir}/{file_name}")
+
+def delete_from_firebase(id: str, file_name: str) -> bool:
+    if not file_name or "/" in file_name or "\\" in file_name:
+        raise ValueError("Invalid file name")
+
+    blob = bucket.blob(f"{id}/{file_name}")
+    if not blob.exists():
+        return False
+    blob.delete()
+    return True
