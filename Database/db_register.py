@@ -29,7 +29,7 @@ def ensure_table() -> None:
 
 
 
-def register_clinic(name: str, email : str, password_plain: str, conversation_history_id: Optional[str] = None) -> str:
+def register_clinic(name: str, email : str, password_plain: str) -> str:
     """Generate a unique clinic_id and insert with bcrypt hash."""
     ensure_table()
     con = duckdb.connect(str(DB))
@@ -46,8 +46,8 @@ def register_clinic(name: str, email : str, password_plain: str, conversation_hi
     pwd_hash = hash_secret(password_plain)
 
     con.execute(
-        "INSERT INTO clinics (clinic_id, name, email, password_hash, conversation_history_id) VALUES (?, ?, ?, ?, ?);",
-        [cid, name, email, pwd_hash, conversation_history_id],
+        "INSERT INTO clinics (clinic_id, name, email, password_hash) VALUES (?, ?, ?, ?);",
+        [cid, name, email, pwd_hash],
     )
     df = con.execute("SELECT * FROM clinics;").fetchdf()
     con.close()
@@ -78,12 +78,6 @@ def authenticate(clinic_email: str, password_plain: str) -> bool:
     if not row:
         return False
     return verify_secret(password_plain, row[0])
-
-def set_conversation_history_id(clinic_id: str) -> None:
-    ensure_table()
-    con = duckdb.connect(str(DB))
-    con.execute("UPDATE clinics SET conversation_history_id=? WHERE clinic_id=?;", [clinic_id])
-    con.close()
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ class AuthController:
         print(f"id={email}, password={password}")
 
         if validate_credentials(email, password):
-            token = create_clinic_token(clinic_id = email, clinic_name = get_clinic_name(email), plan="standard")
+            token = create_clinic_token(clinic_email = email, clinic_name = get_clinic_name(email), plan="standard")
             resp = RedirectResponse(url="/home/index", status_code=302)
             resp.set_cookie(
                 COOKIE_NAME,

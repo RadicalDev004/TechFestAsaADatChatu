@@ -6,7 +6,7 @@ from ..models.schemas import (
 from ..repository.clinic_repo import create_clinic, validate_credentials
 from ..core.security import create_clinic_token
 from ..core.deps import get_current_clinic
-from Database.firebase.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase
+from Database.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase
 
 router = APIRouter(prefix = "/api", tags=["file-upload"])
 

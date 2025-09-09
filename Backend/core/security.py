@@ -32,11 +32,11 @@ def hash_secret(raw: str) -> str:
 def verify_secret(raw: str, hashed: str) -> bool:
     return pwd_ctx.verify(raw, hashed)
 
-def create_clinic_token(*, clinic_id: str, clinic_name: str, plan: str = "standard") -> str:
+def create_clinic_token(*, clinic_email: str, clinic_name: str, plan: str = "standard") -> str:
     now = datetime.now(timezone.utc)
     payload = {
-        "sub": f"clinic:{clinic_id}",
-        "clinic_id": clinic_id,
+        "sub": f"clinic:{clinic_email}",
+        "clinic_email": clinic_email,
         "clinic_name": clinic_name,
         "plan": plan,
         "iat": int(now.timestamp()),
