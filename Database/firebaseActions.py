@@ -28,3 +28,14 @@ def list_files_from_firebase(id):
     for blob in blobs_iter:
         out.append(blob.name)   # e.g. "<id>/filename.pdf"
     return out
+  
+def delete_from_firebase(id: str, file_name: str) -> bool:
+    if not file_name or "/" in file_name or "\\" in file_name:
+        raise ValueError("Invalid file name")
+
+    blob = bucket.blob(f"{id}/{file_name}")
+    if not blob.exists():
+        return False
+    blob.delete()
+    return True
+

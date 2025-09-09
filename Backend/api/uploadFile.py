@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
 from ..models.schemas import (
     ClinicRegisterRequest, ClinicRegisterResponse,
     ClinicTokenRequest, TokenResponse, ClinicPrincipal
@@ -6,7 +6,7 @@ from ..models.schemas import (
 from ..repository.clinic_repo import create_clinic, validate_credentials
 from ..core.security import create_clinic_token
 from ..core.deps import get_current_clinic
-from Database.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase
+from Database.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase, delete_from_firebase
 
 router = APIRouter(prefix = "/api", tags=["file-upload"])
 
@@ -28,5 +28,17 @@ async def upload_to_firebase_placeholder(file: UploadFile = File(...)):
         "filename": file.filename,
         "content_type": file.content_type,
     }
+@router.delete("/delete/{file_name}", status_code=204)
+async def delete_file_from_firebase(file_name: str):
+
+    try:
+        existed = delete_from_firebase("test_id", file_name)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+
+    if not existed:
+        raise HTTPException(status_code=404, detail="File not found")
+    return  # 204 No Content
+
 
 
