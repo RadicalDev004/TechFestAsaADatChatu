@@ -22,14 +22,14 @@ def build_sql_tool(llm, db_path=DATA_PATH):
 
     @tool("sql_query_tool")
     def run_sql(query: str) -> str:
-        """Ask natural language questions about the patients database and get structured results."""
+        """Ask natural language questions about the database and get structured results."""
         return sql_agent.invoke({"input": query})
     return run_sql
 
 
 @tool("make_chart", return_direct=True)
 def make_chart(data: list, x: str, y: str, chart: str = "bar") -> str:
-    """Create a Plotly chart from SQL results.
+    """Create a chart from SQL results.
     Args:
         data: List of dicts containing query results.
         x: Column name for X-axis.

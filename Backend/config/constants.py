@@ -3,7 +3,7 @@ from Backend.config.classes import ModelConfig, PromptConfig
 
 MODEL_CONFIG = ModelConfig()
 PROMPT_CONFIG = PromptConfig()
-DB_FILE = Path(__file__).resolve().parents[2] / "Database" / "data" / "clinic.duckdb"
+DB_FILE = Path(__file__).resolve().parents[2] / "data" / "clinic.duckdb"
 DATA_PATH = f"duckdb:///{DB_FILE.as_posix()}"
 EXPLAIN_PROMPT = (
     "Explain the chart you just returned in 2–3 concise sentences. "
