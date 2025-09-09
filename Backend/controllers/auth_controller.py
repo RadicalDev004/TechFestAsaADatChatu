@@ -3,7 +3,7 @@ import bcrypt
 from typing import Optional
 from Backend.repository.clinic_repo import validate_credentials
 from Backend.core.security import create_clinic_token
-from Database.db_register import get_clinic_name
+from Database.db_register import get_clinic_name,register_clinic
 from fastapi import Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
@@ -51,3 +51,30 @@ class AuthController:
               window.location.href = "/auth/index";
             </script>
         """)
+    
+    async def register(self, request: Request):
+        if request.method != 'POST':
+            return RedirectResponse(url="/auth/index")
+        
+        form = await request.form()
+        clinic_name = form.get('username') or ''
+        password = form.get('password')
+
+        if not clinic_name or not password :
+            return """
+                <script>
+                  alert("Please fill all fields.");
+                  window.location.href = "/auth/index";
+                </script>
+            """
+        
+        register_clinic(clinic_name, password)
+
+        return HTMLResponse("""
+            <script>
+              alert("Registration successful! You can log in now.");
+              window.location.href = "/auth/index";
+            </script>
+        """)
+
+
