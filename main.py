@@ -1,10 +1,9 @@
 # main.py
-import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
 from Backend.utils.router import Router
 from Backend.api.auth import router as auth_router
+from Backend.api.history import router as history_router
 from Backend.api.uploadFile import router as upload_router
 from starlette.responses import Response, HTMLResponse, RedirectResponse, StreamingResponse
 
@@ -21,6 +20,7 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(auth_router)
+app.include_router(history_router)
 app.include_router(upload_router)
 
 # Our dynamic router

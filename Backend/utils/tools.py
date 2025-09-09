@@ -1,5 +1,6 @@
 import base64
-
+import re
+from typing import Callable
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_community.utilities import SQLDatabase
 from langchain.tools import tool
@@ -8,10 +9,16 @@ import io
 import matplotlib.pyplot as plt
 from Backend.config.constants import DATA_PATH
 
+bots: dict[int, Callable] = {}
+
+def is_image(s: str) -> bool:
+    auxiliar = re.compile(r"^data:image/png;base64,", re.IGNORECASE)
+    return bool(auxiliar.match(s.strip()))
+
 
 def build_sql_tool(llm, db_path=DATA_PATH):
     db = SQLDatabase.from_uri(db_path)
-    sql_agent = create_sql_agent(llm, db=db, verbose=True, top_k=100)
+    sql_agent = create_sql_agent(llm, db=db, top_k=100)
 
     @tool("sql_query_tool")
     def run_sql(query: str) -> str:
@@ -20,7 +27,7 @@ def build_sql_tool(llm, db_path=DATA_PATH):
     return run_sql
 
 
-@tool("make_chart")
+@tool("make_chart", return_direct=True)
 def make_chart(data: list, x: str, y: str, chart: str = "bar") -> str:
     """Create a Plotly chart from SQL results.
     Args:
