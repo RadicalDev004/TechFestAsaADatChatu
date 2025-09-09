@@ -65,6 +65,13 @@ def get_clinic_name(clinic_email: str) -> Optional[str]:
     con.close()
     return row[0] if row else None
 
+def get_clinic_id_by_email(clinic_email: str) -> Optional[str]:
+    ensure_table()
+    con = duckdb.connect(str(DB))
+    row = con.execute("SELECT clinic_id FROM clinics WHERE email = ? LIMIT 1;", [clinic_email]).fetchone()
+    con.close()
+    return row[0] if row else None
+
 
 def authenticate(clinic_email: str, password_plain: str) -> bool:
     """Read stored bcrypt hash and verify the plain password."""
