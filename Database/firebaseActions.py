@@ -21,3 +21,10 @@ def download_all_from_firebase(id, local_dir):
     for blob in blobs:
         file_name = blob.name.split('/')[-1]
         blob.download_to_filename(f"{local_dir}/{file_name}")
+
+def list_files_from_firebase(id):
+    blobs_iter = bucket.list_blobs(prefix=f"{id}/")
+    out = []
+    for blob in blobs_iter:
+        out.append(blob.name)   # e.g. "<id>/filename.pdf"
+    return out

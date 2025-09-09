@@ -5,6 +5,7 @@ from Backend.utils.router import Router
 from Backend.api.auth import router as auth_router
 from Backend.api.history import router as history_router
 from Backend.api.uploadFile import router as upload_router
+from Backend.api.listFiles import router as list_files_router
 from starlette.responses import Response, HTMLResponse, RedirectResponse, StreamingResponse
 
 app = FastAPI(title="Clinic Auth - MVP")
@@ -22,6 +23,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(history_router)
 app.include_router(upload_router)
+app.include_router(list_files_router)
 
 # Our dynamic router
 router = Router()
