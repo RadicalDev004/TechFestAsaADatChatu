@@ -77,10 +77,7 @@ def ingest_clinic_from_firebase(clinic_id: str) -> None:
         shutil.rmtree(clinic_dir)
     clinic_dir.mkdir(parents=True, exist_ok=True)
 
-    downloaded = download_all_from_firebase(clinic_id, clinic_dir)
-    if not downloaded:
-        print(f"No CSV files found under '{clinic_id}/'")
-        return
+    download_all_from_firebase(clinic_id, clinic_dir)
 
     csvs = sorted(p for p in clinic_dir.iterdir() if p.suffix.lower() == ".csv")
     if not csvs:
