@@ -21,7 +21,7 @@ from Backend.models.schemas import (
 )
 from Backend.core.deps import get_current_clinic
 from Backend.utils.tools import bots, is_image
-from Database.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase, delete_from_firebase
+from Database.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase, delete_from_firebase, get_download_url
 
 
 CurrentClinic = Annotated[dict, Depends(get_current_clinic)]
@@ -47,11 +47,21 @@ async def upload_to_firebase_placeholder(current: CurrentClinic, file: UploadFil
         "content_type": file.content_type,
     }
 
-@router.delete("/delete/{file_name}", status_code=204)
-async def delete_file_from_firebase(file_name: str):
-
+@router.get("/download/{file_name}", status_code=200)
+async def download_file_from_firebase(current: CurrentClinic, file_name: str):
+    clinic_id = str(current["clinic_id"])
+    local_path = f"/tmp/{file_name}"
     try:
-        existed = delete_from_firebase("test_id", file_name)
+        url = get_download_url(clinic_id, file_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {e}")
+    return {"status": "success", "message": f"{url}"}
+
+@router.delete("/delete/{file_name}", status_code=204)
+async def delete_file_from_firebase(current: CurrentClinic, file_name: str):
+    clinic_id = str(current["clinic_id"])
+    try:
+        existed = delete_from_firebase(clinic_id, file_name)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid file name")
 

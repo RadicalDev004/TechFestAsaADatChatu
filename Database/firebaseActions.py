@@ -1,3 +1,4 @@
+from datetime import timedelta
 import firebase_admin
 from firebase_admin import credentials, storage
 
@@ -16,6 +17,10 @@ def download_from_firebase(id, file_name):
     blob = bucket.blob(f"{id}/{file_name}")
     blob.download_to_filename(file_name)
 
+def get_download_url(id, file_name):
+    blob = bucket.blob(f"{id}/{file_name}")
+    return blob.generate_signed_url(version="v4", expiration=timedelta(minutes=15), method="GET")
+
 def download_all_from_firebase(id, local_dir):
     blobs = bucket.list_blobs(prefix=f"{id}/")
     for blob in blobs:
@@ -26,7 +31,13 @@ def list_files_from_firebase(id):
     blobs_iter = bucket.list_blobs(prefix=f"{id}/")
     out = []
     for blob in blobs_iter:
-        out.append(blob.name)   # e.g. "<id>/filename.pdf"
+        out.append({
+            "name": blob.name,
+            "size": blob.size,
+            "updated": blob.updated 
+        })
+    #print(id)
+    #print(out)
     return out
   
 def delete_from_firebase(id: str, file_name: str) -> bool:
