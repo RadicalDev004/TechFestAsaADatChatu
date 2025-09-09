@@ -1,4 +1,3 @@
-# Database/clinics.py
 import duckdb, secrets
 from pathlib import Path
 from typing import Optional
@@ -19,18 +18,16 @@ def ensure_table() -> None:
       clinic_id VARCHAR(6) PRIMARY KEY,
       name TEXT,
       password_hash TEXT NOT NULL,
-      conversation_history_id TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CHECK (length(clinic_id)=6),
       CHECK (regexp_full_match(clinic_id, '^[0-9a-f]{6}$'))
     );
     """)
     con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clinics_id ON clinics(clinic_id);")
-    con.execute("CREATE INDEX IF NOT EXISTS idx_clinics_convo ON clinics(conversation_history_id);")
     con.close()
 
 
-def register_clinic(name: str, password_plain: str, conversation_history_id: Optional[str] = None) -> str:
+def register_clinic(name: str, password_plain: str) -> str:
     """Generate a unique clinic_id and insert with bcrypt hash."""
     ensure_table()
     con = duckdb.connect(str(DB))
@@ -47,8 +44,8 @@ def register_clinic(name: str, password_plain: str, conversation_history_id: Opt
     pwd_hash = hash_secret(password_plain)
 
     con.execute(
-        "INSERT INTO clinics (clinic_id, name, password_hash, conversation_history_id) VALUES (?, ?, ?, ?);",
-        [cid, name, pwd_hash, conversation_history_id],
+        "INSERT INTO clinics (clinic_id, name, password_hash) VALUES (?, ?, ?);",
+        [cid, name, pwd_hash],
     )
     con.close()
     return cid
@@ -75,15 +72,15 @@ def authenticate(clinic_id: str, password_plain: str) -> bool:
         return False
     return verify_secret(password_plain, row[0])
 
-def set_conversation_history_id(clinic_id: str, conversation_history_id: Optional[str]) -> None:
+def set_conversation_history_id(clinic_id: str) -> None:
     ensure_table()
     con = duckdb.connect(str(DB))
-    con.execute("UPDATE clinics SET conversation_history_id=? WHERE clinic_id=?;", [conversation_history_id, clinic_id])
+    con.execute("UPDATE clinics SET conversation_history_id=? WHERE clinic_id=?;", [clinic_id])
     con.close()
 
 
 if __name__ == "__main__":
     ensure_table()
-    cid = register_clinic("Demo Clinic", "demo_password", None)
+    cid = register_clinic("Demo Clinic", "demo_password")
     print("Registered clinic_id:", cid)
     print("Auth OK?:", authenticate(cid, "demo_password"))

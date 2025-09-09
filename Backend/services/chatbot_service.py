@@ -31,8 +31,7 @@ def create_agent(
         executor = AgentExecutor(
             agent=agent,
             tools=tools,
-            memory=memory,
-            verbose=True
+            memory=memory
         )
 
         def chat_with_agent(query: str) -> str:
