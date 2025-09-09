@@ -1,74 +1,244 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Register</title>
+  <meta charset="UTF-8" />
+  <title>Auth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --primary: #007bff;
+      --primary-hover: #0056b3;
+      --bg: #f5f5f5;
+      --card: #fff;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
-      background: #f5f5f5;
+      background: var(--bg);
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
     }
     .container {
-      background: #fff;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      width: 350px;
+      background: var(--card);
+      width: 100%;
+      max-width: 380px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      overflow: hidden;
+      border: 1px solid var(--border);
     }
-    h2 {
+    .header {
+      padding: 1.25rem 1.25rem 0.75rem;
       text-align: center;
-      margin-bottom: 1.5rem;
     }
-    input[type="text"], input[type="email"], input[type="password"] {
-      width: 100%;
-      padding: 0.6rem;
-      margin: 0.5rem 0;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+    .header h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1.5rem;
     }
-    button {
-      width: 100%;
-      padding: 0.7rem;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
       margin-top: 1rem;
+    }
+    .tab-btn {
+      padding: 0.8rem 0.5rem;
+      background: transparent;
+      border: none;
       cursor: pointer;
       font-size: 1rem;
+      transition: 0.2s ease;
+      border-bottom: 2px solid transparent;
     }
-    button:hover {
-      background: #0056b3;
+    .tab-btn.active {
+      color: var(--primary);
+      border-color: var(--primary);
+      font-weight: 600;
     }
-    .link {
+    .content {
+      padding: 1.25rem;
+    }
+    form { display: grid; gap: 0.75rem; }
+    .field {
+      display: grid;
+      gap: 0.35rem;
+    }
+    .field label {
+      font-size: 0.9rem;
+      color: #111827;
+    }
+    .field input {
+      width: 100%;
+      padding: 0.65rem 0.7rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: 0.15s ease;
+      background: #fff;
+    }
+    .field input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+    }
+    .btn {
+      width: 100%;
+      padding: 0.8rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: background 0.2s ease;
+      margin-top: 0.25rem;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .muted {
       text-align: center;
-      margin-top: 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 0.75rem;
     }
-    .link a {
-      color: #007bff;
-      text-decoration: none;
+    .toggle {
+      color: var(--primary);
+      cursor: pointer;
+      user-select: none;
     }
-    .link a:hover {
-      text-decoration: underline;
+    .hidden { display: none; }
+    .alert {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Create Account</h2>
-    <form method="POST" action="/authenticator/register">
-      <input type="text" name="username" placeholder="Username" required>
-      <input type="email" name="email" placeholder="Email" required>
-      <input type="password" name="password" placeholder="Password" required>
-      <button type="submit">Register</button>
-    </form>
-    <div class="link">
-      Already have an account? <a href="/authenticator/index">Login</a>
+  <div class="container" id="auth-card">
+    <div class="header">
+      <h2 id="title">Welcome back</h2>
+      <p id="subtitle">Login to continue to your dashboard</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" id="loginTab" type="button">Login</button>
+      <button class="tab-btn" id="registerTab" type="button">Register</button>
+    </div>
+
+    <div class="content">
+      <!-- Shared alert area for simple client-side validation feedback -->
+      <div class="alert" id="alertBox"></div>
+
+      <!-- Login Form -->
+      <form id="loginForm" method="POST" action="/auth/login" novalidate>
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="text" placeholder="john_doe" required />
+        </div>
+
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" placeholder="••••••••" required />
+        </div>
+
+        <button class="btn" type="submit">Login</button>
+
+        <div class="muted">
+          Don’t have an account?
+          <span class="toggle" data-target="register">Create one</span>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="hidden" method="POST" action="/auth/register" novalidate>
+        <div class="field">
+          <label for="reg-username">Username</label>
+          <input id="reg-username" name="username" type="text" placeholder="john_doe" required />
+        </div>
+        <div class="field">
+          <label for="reg-email">Email</label>
+          <input id="reg-email" name="email" type="email" placeholder="name@domain.com"  required />
+        </div>
+        <div class="field">
+          <label for="reg-password">Password</label>
+          <input id="reg-password" name="password" type="password" placeholder="At least 8 characters" minlength="8" required />
+        </div>
+
+        
+
+        <button class="btn" type="submit">Create account</button>
+
+        <div class="muted">
+          Already have an account?
+          <span class="toggle" data-target="login">Login</span>
+        </div>
+      </form>
     </div>
   </div>
+
+  <script>
+    // Simple tab toggle logic
+    const loginTab = document.getElementById('loginTab');
+    const registerTab = document.getElementById('registerTab');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const title = document.getElementById('title');
+    const subtitle = document.getElementById('subtitle');
+    const alertBox = document.getElementById('alertBox');
+
+    function setMode(mode) {
+      const isLogin = mode === 'login';
+      loginTab.classList.toggle('active', isLogin);
+      registerTab.classList.toggle('active', !isLogin);
+      loginForm.classList.toggle('hidden', !isLogin);
+      registerForm.classList.toggle('hidden', isLogin);
+      alertBox.style.display = 'none';
+      if (isLogin) {
+        title.textContent = 'Welcome back';
+        subtitle.textContent = 'Login to continue to your dashboard';
+      } else {
+        title.textContent = 'Create Account';
+        subtitle.textContent = 'Register to get started';
+      }
+    }
+
+    // Tab buttons
+    loginTab.addEventListener('click', () => setMode('login'));
+    registerTab.addEventListener('click', () => setMode('register'));
+
+    // Inline "toggle" links
+    document.querySelectorAll('.toggle').forEach(el => {
+      el.addEventListener('click', () => {
+        setMode(el.dataset.target);
+      });
+    });
+
+    // Tiny client-side checks (optional)
+    registerForm.addEventListener('submit', (e) => {
+      const pwd = document.getElementById('reg-password').value;
+      if (pwd.length < 8) {
+        e.preventDefault();
+        alertBox.textContent = 'Password must be at least 8 characters.';
+        alertBox.style.display = 'block';
+      }
+    });
+  </script>
 </body>
 </html>

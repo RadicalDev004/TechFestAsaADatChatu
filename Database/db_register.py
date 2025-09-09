@@ -17,6 +17,7 @@ def ensure_table() -> None:
     CREATE TABLE IF NOT EXISTS clinics (
       clinic_id VARCHAR(6) PRIMARY KEY,
       name TEXT,
+      email TEXT,
       password_hash TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CHECK (length(clinic_id)=6),
@@ -27,7 +28,8 @@ def ensure_table() -> None:
     con.close()
 
 
-def register_clinic(name: str, password_plain: str) -> str:
+
+def register_clinic(name: str, email : str, password_plain: str, conversation_history_id: Optional[str] = None) -> str:
     """Generate a unique clinic_id and insert with bcrypt hash."""
     ensure_table()
     con = duckdb.connect(str(DB))
@@ -44,28 +46,33 @@ def register_clinic(name: str, password_plain: str) -> str:
     pwd_hash = hash_secret(password_plain)
 
     con.execute(
-        "INSERT INTO clinics (clinic_id, name, password_hash) VALUES (?, ?, ?);",
-        [cid, name, pwd_hash],
+        "INSERT INTO clinics (clinic_id, name, email, password_hash, conversation_history_id) VALUES (?, ?, ?, ?, ?);",
+        [cid, name, email, pwd_hash, conversation_history_id],
     )
+    df = con.execute("SELECT * FROM clinics;").fetchdf()
     con.close()
+    
+    
+    print(df)
+
     return cid
 
 
-def get_clinic_name(clinic_id: str) -> Optional[str]:
+def get_clinic_name(clinic_email: str) -> Optional[str]:
     ensure_table()
     con = duckdb.connect(str(DB))
-    row = con.execute("SELECT name FROM clinics WHERE clinic_id = ? LIMIT 1;", [clinic_id]).fetchone()
+    row = con.execute("SELECT name FROM clinics WHERE email = ? LIMIT 1;", [clinic_email]).fetchone()
     con.close()
     return row[0] if row else None
 
 
-def authenticate(clinic_id: str, password_plain: str) -> bool:
+def authenticate(clinic_email: str, password_plain: str) -> bool:
     """Read stored bcrypt hash and verify the plain password."""
     ensure_table()
     con = duckdb.connect(str(DB))
     row = con.execute(
-        "SELECT password_hash FROM clinics WHERE clinic_id = ? LIMIT 1;",
-        [clinic_id],
+        "SELECT password_hash FROM clinics WHERE email = ? LIMIT 1;",
+        [clinic_email],
     ).fetchone()
     con.close()
     if not row:
