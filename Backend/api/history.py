@@ -22,14 +22,18 @@ from Backend.models.schemas import (
 )
 from Backend.core.deps import get_current_clinic
 from Backend.utils.tools import bots, is_image
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api", tags=["chatbot"])
 CurrentClinic = Annotated[dict, Depends(get_current_clinic)]
 
+class ConversationCreate(BaseModel):
+    title: str
+
 @router.post("/conversations", response_model=ConversationOut, status_code=201)
-def create_conversation_route(current: CurrentClinic):
+def create_conversation_route(body: ConversationCreate, current: CurrentClinic):
     """Create a new conversation for the current clinic."""
-    conv_id = create_conversation(clinic_id=current["clinic_id"], title="New conversation")
+    conv_id = create_conversation(clinic_id=current["clinic_id"], title=body.title)
 
     bots[conv_id] = create_agent(MODEL_CONFIG, PROMPT_CONFIG)
 
@@ -54,13 +58,15 @@ def get_conversation_route(conversation_id: int, current: CurrentClinic):
     if not conv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
     msgs = list_messages(conversation_id=conv.id)
+    print("AAAAA")
+    print(msgs)
     return ConversationWithMessages(
         conversation=ConversationOut(id=conv.id, title=conv.title),
         messages=[MessageOut(id=m["id"], role=m["role"], content=m["content"]) for m in msgs],
     )
 
 
-@router.post("/conversations/{conversation_id}/messages", response_model=ConversationWithMessages)
+@router.post("/conversations/{conversation_id}/messages", response_model=MessageOut)
 def send_message_route(conversation_id: int, payload: MessageIn, current: CurrentClinic):
     """Append a user message to a conversation you own and return the thread."""
     conv = get_conversation(conversation_id=conversation_id, clinic_id=current["clinic_id"])
@@ -88,15 +94,10 @@ def send_message_route(conversation_id: int, payload: MessageIn, current: Curren
 
     add_message(conversation_id=conv.id, clinic_id=current["clinic_id"], role="assistant", content=bot_reply)
 
-    if conv.title == "New conversation":
-        rename_conversation(conversation_id=conv.id, clinic_id=current["clinic_id"], new_title=title_from_text(content))
+    #if conv.title == "New conversation":
+    #    rename_conversation(conversation_id=conv.id, clinic_id=current["clinic_id"], new_title=title_from_text(content))
 
-    conv = get_conversation(conversation_id=conversation_id, clinic_id=current["clinic_id"])
-    msgs = list_messages(conversation_id=conv.id)
-    return ConversationWithMessages(
-        conversation=ConversationOut(id=conv.id, title=conv.title),
-        messages=[MessageOut(id=m["id"], role=m["role"], content=m["content"]) for m in msgs],
-    )
+    return MessageOut(id=0, role="assistant", content=bot_reply)
 
 
 @router.delete("/conversations/{conversation_id}")

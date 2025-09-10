@@ -1,5 +1,6 @@
 import base64
 import re
+import duckdb
 from typing import Callable
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_community.utilities import SQLDatabase
@@ -7,7 +8,7 @@ from langchain.tools import tool
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
-from Backend.config.constants import DATA_PATH
+from Backend.config.constants import DATA_PATH, DB_FILE
 
 bots: dict[int, Callable] = {}
 
@@ -15,30 +16,35 @@ def is_image(s: str) -> bool:
     auxiliar = re.compile(r"^data:image/png;base64,", re.IGNORECASE)
     return bool(auxiliar.match(s.strip()))
 
+def build_sql_tool(llm,db_path=DATA_PATH):
+    con = duckdb.connect(DB_FILE.as_posix())
+    con.execute('CREATE OR REPLACE TABLE patients AS SELECT * FROM "test_id clinic=sons";')
+    con.close()
 
-def build_sql_tool(llm, db_path=DATA_PATH):
-    db = SQLDatabase.from_uri(db_path)
-    sql_agent = create_sql_agent(llm, db=db, top_k=100)
+    db = SQLDatabase.from_uri(db_path, include_tables=["patients"])
+    sql_agent = create_sql_agent(llm, db=db, verbose=True, top_k=100)
 
     @tool("sql_query_tool")
-    def run_sql(query: str) -> str:
+
+    def run_sql(natural_language: str) -> str:
         """Ask natural language questions about the database and get structured results."""
-        return sql_agent.invoke({"input": query})
+        return sql_agent.invoke({"input": natural_language})
     return run_sql
 
 
 @tool("make_chart", return_direct=True)
-def make_chart(data: list, x: str, y: str, chart: str = "bar") -> str:
+def make_chart(data_from_sql_query_tool: list, x: str, y: str, chart: str = "bar") -> str:
+
     """Create a chart from SQL results.
     Args:
-        data: List of dicts containing query results.
+        data_from_sql_query_tool: List of dicts containing query results.
         x: Column name for X-axis.
         y: Column name for Y-axis.
         chart: One of ["bar", "line", "pie", etc.]. Default is "bar".
     Returns:
         Raw PNG bytes.
     """
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data_from_sql_query_tool)
     fig, ax = plt.subplots(figsize=(6, 4))
 
     if chart == "line":
