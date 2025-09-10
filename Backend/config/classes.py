@@ -8,10 +8,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ModelConfig(BaseSettings):
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-5-mini"
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     top_p: float = Field(default=1.0, ge=0.0, le=1.0)
-    max_tokens: PositiveInt = 500
+    max_tokens: PositiveInt = 1000
     presence_penalty: float = Field(default=1.0, ge=-2.0, le=2.0)
     frequency_penalty: float = Field(default=1.0, ge=-2.0, le=2.0)
     api_key: SecretStr | None = Field(default=None, alias="OPENAI_API_KEY")

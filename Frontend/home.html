@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Home – Smart Librarian</title>
+  <title>Home</title>
   <style>
     :root {
       --bg: #fff7f5;                /* very light warm background */
@@ -518,7 +518,40 @@
   .voice-msg { grid-template-columns: auto 1fr; }
   .voice-meta { grid-column: 1 / -1; justify-items: start; }
 }
+/* The X itself */
+.conv-btn .conv-x {
+  position: absolute;
+  right: 12px;           /* use inset-inline-end for RTL if you prefer */
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.9);
+  color: var(--muted);
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: background .2s, color .2s, transform .1s;
+}
 
+.conv-btn .conv-x:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-50%) translateY(-1px);
+}
+
+.conv-btn .conv-x:active {
+  transform: translateY(-50%) translateY(0);
+}
+
+.conv-btn:has(.conv-x) {
+  position: relative;
+  padding-right: 42px; /* room so text doesn't sit under the X */
+}
   </style>
 </head>
 <body>
@@ -787,6 +820,18 @@ function renderConversations(){
     btn.className = 'conv-btn' + (idx === currentIndex ? ' active' : '');
     btn.textContent = c.title;
     btn.addEventListener('click', () => { currentIndex = idx; renderMessages(c.id); renderConversations(); });
+
+    const xBtn = document.createElement('button');
+    xBtn.type = 'button';
+    xBtn.className = 'conv-x';
+    xBtn.textContent = '✕';
+    xBtn.title = `Delete "${c.title}"`;
+    xBtn.setAttribute('aria-label', `Delete "${c.title}"`);
+    xBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteConversation(c.id);
+    });
+    btn.appendChild(xBtn);
     li.appendChild(btn);
     convList.appendChild(li);
     if(idx > maxIndex) maxIndex = idx;
@@ -812,7 +857,7 @@ function renderMessages(id){
 
               let fullMsg = m.content;
 
-              let Imatch = fullMsg.match(/<image\b[^>]*>([\s\S]*?)<\/image>/i);
+              let Imatch = fullMsg.match(/<img\b[^>]*>([\s\S]*?)<\/img>/i);
               let base64Img = Imatch ? Imatch[1].trim() : null;
               if (Imatch) {
                 fullMsg = fullMsg.replace(Imatch[0], '').trim();
@@ -826,7 +871,7 @@ function renderMessages(id){
                 fullMsg = fullMsg.replace(Amatch[0], '').trim();
               }
 
-              pushMsg(m.role == "user" ? "me" : "ai", m.content); 
+              pushMsg(m.role == "user" ? "me" : "ai", fullMsg); 
 
               if(Amatch) {
                 createVoiceMessage(base64Audio);
@@ -862,6 +907,7 @@ chatForm.addEventListener('submit', (e) => {
     return;
   }
   pushMsg('me', text);
+  pushMsg('ai', "Thinking...");
   fetch('/api/conversations/' + conversations[currentIndex].id + '/messages', {
           method: 'POST',
           headers: {
@@ -876,7 +922,7 @@ chatForm.addEventListener('submit', (e) => {
             console.log('Message sent:', result);
             let fullMsg = result.content;
 
-            let Imatch = fullMsg.match(/<image\b[^>]*>([\s\S]*?)<\/image>/i);
+            let Imatch = fullMsg.match(/<img\b[^>]*>([\s\S]*?)<\/img>/i);
             let base64Img = Imatch ? Imatch[1].trim() : null;
             if (Imatch) {
               fullMsg = fullMsg.replace(Imatch[0], '').trim();
@@ -889,7 +935,8 @@ chatForm.addEventListener('submit', (e) => {
             if (Amatch) {
               fullMsg = fullMsg.replace(Amatch[0], '').trim();
             }
-            
+
+            chatBody.removeChild(chatBody.lastChild);
             pushMsg('ai', fullMsg);
 
             if(Amatch) {
@@ -1058,7 +1105,7 @@ async function fetchFiles() {
         }).finally(() => {
           currentIndex = 0;
           renderConversations();
-          //renderMessages();
+          renderMessages();
         })  
   }
 
@@ -1079,8 +1126,7 @@ function createImageMessage(base64) {
   const imgMsg = document.createElement('div');
   imgMsg.className = 'img-msg';
   imgMsg.innerHTML = `
-    <img src="data:image/png;base64,${base64}" alt="AI generated image" />
-    <div class="img-bar">    </div>
+    <img src="${base64}" alt="AI generated image" />
   `;
 
   bubble.appendChild(imgMsg);
@@ -1097,7 +1143,7 @@ function createVoiceMessage(base64) {
 
   // Hidden audio
   const audio = document.createElement('audio');
-  audio.src = `data:audio/wav;base64,${base64}`;
+  audio.src = `${base64}`;
   audio.preload = 'auto';
 
   // Play button
@@ -1131,20 +1177,20 @@ function createVoiceMessage(base64) {
   audio.addEventListener('ended', () => { playBtn.textContent = '▶'; });
 
   // Meta
-  const meta = document.createElement('div');
-  meta.className = 'voice-meta';
-  meta.innerHTML = `<button class="voice-action" type="button">Download</button>`;
-  meta.querySelector('.voice-action').addEventListener('click', () => {
-    const link = document.createElement('a');
-    link.href = audio.src;
-    link.download = 'voice-message.wav';
-    link.click();
-  });
+  // const meta = document.createElement('div');
+  // meta.className = 'voice-meta';
+  // meta.innerHTML = `<button class="voice-action" type="button">Download</button>`;
+  // meta.querySelector('.voice-action').addEventListener('click', () => {
+  //   const link = document.createElement('a');
+  //   link.href = audio.src;
+  //   link.download = 'voice-message.wav';
+  //   link.click();
+  // });
 
   // Build structure
   voiceMsg.appendChild(playBtn);
   voiceMsg.appendChild(voiceTrack);
-  voiceMsg.appendChild(meta);
+  //voiceMsg.appendChild(meta);
   bubble.appendChild(voiceMsg);
   bubble.appendChild(audio);
 
@@ -1152,6 +1198,49 @@ function createVoiceMessage(base64) {
   chatBody.scrollTop = chatBody.scrollHeight;
 }
 
+async function deleteConversation(id, { confirmFirst = true } = {}) {
+  const idx = conversations.findIndex(c => c.id === id);
+  if (idx === -1) return;
+
+  const title = conversations[idx].title || 'this chat';
+  if (confirmFirst && !confirm(`Delete conversation "${title}"?`)) return;
+
+  try {
+    triggerLoad(title, 'Deleting conversation');
+    const res = await fetch(`/api/conversations/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getTokenFromCookie()}`
+      }
+    });
+    if (!res.ok) throw new Error('Delete failed');
+
+    const deletingCurrent = conversations[currentIndex]?.id === id;
+    conversations.splice(idx, 1);
+
+    if (conversations.length === 0) {
+      currentIndex = 0;
+      renderConversations();
+      renderMessages(null);
+      return;
+    }
+
+    if (deletingCurrent) {
+      currentIndex = Math.min(idx, conversations.length - 1);
+      renderConversations();
+      renderMessages(conversations[currentIndex].id);
+    } else {
+      if (idx < currentIndex) currentIndex = Math.max(0, currentIndex - 1);
+      renderConversations();
+    }
+  } catch (err) {
+    console.warn(err);
+    alert('Delete failed.');
+  } finally {
+    endLoad();
+  }
+}
 
 // Initial render
 fetchFiles().then(files => {

@@ -23,6 +23,6 @@ def build_llm(model_config: ModelConfig) -> ChatOpenAI:
         presence_penalty=model_config.presence_penalty,
         frequency_penalty=model_config.frequency_penalty,
         api_key=model_config.api_key,
-        timeout=60.0,  # Set a timeout to avoid long waits
+        timeout=200.0,  # Set a timeout to avoid long waits
         max_retries=2  # Retry up to max_retries times in case of errors
     )
