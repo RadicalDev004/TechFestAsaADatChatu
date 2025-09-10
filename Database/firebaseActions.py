@@ -1,6 +1,8 @@
 from datetime import timedelta
 import firebase_admin
 from firebase_admin import credentials, storage
+from datetime import timezone
+from zoneinfo import ZoneInfo
 
 cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred, {
@@ -31,10 +33,13 @@ def list_files_from_firebase(id):
     blobs_iter = bucket.list_blobs(prefix=f"{id}/")
     out = []
     for blob in blobs_iter:
+        dt = blob.updated
+        if dt is not None and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
         out.append({
             "name": blob.name,
             "size": blob.size,
-            "updated": blob.updated 
+            "updated": dt.astimezone(ZoneInfo("Europe/Bucharest")) if dt else None 
         })
     #print(id)
     #print(out)

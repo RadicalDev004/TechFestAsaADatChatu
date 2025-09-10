@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import Annotated
-from Backend.config.constants import MODEL_CONFIG, PROMPT_CONFIG, EXPLAIN_PROMPT
+from Backend.config.constants import MODEL_CONFIG, EXPLAIN_PROMPT
 from Backend.services.chatbot_service import create_agent
 from Backend.core.deps import get_current_clinic
 from Backend.utils.tools import bots, is_image

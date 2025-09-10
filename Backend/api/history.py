@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
+from Backend.config.constants import MODEL_CONFIG, EXPLAIN_PROMPT
 from fastapi.responses import Response
 from openai import OpenAI
-from Backend.config.constants import MODEL_CONFIG, PROMPT_CONFIG, EXPLAIN_PROMPT
+
 from Backend.services.chatbot_service import create_agent
 from Database.db_history import (
     create_conversation,
