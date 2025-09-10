@@ -8,6 +8,8 @@ from langchain.tools import tool
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
+from openai import OpenAI
+
 from Backend.config.constants import DATA_PATH, DB_FILE
 
 bots: dict[int, Callable] = {}
@@ -15,6 +17,29 @@ bots: dict[int, Callable] = {}
 def is_image(s: str) -> bool:
     auxiliar = re.compile(r"^data:image/png;base64,", re.IGNORECASE)
     return bool(auxiliar.match(s.strip()))
+
+def text_to_speech(s:str) -> str:
+    client = OpenAI()
+
+    try:
+        with client.audio.speech.with_streaming_response.create(
+                model="gpt-4o-mini-tts",
+                voice="alloy",
+                input=s
+        ) as resp:
+            audio_bytes = resp.read()
+    except Exception:
+        with client.audio.speech.with_streaming_response.create(
+                model="gpt-4o-realtime-preview-2024-12-17",
+                voice="alloy",
+                input=s
+        ) as resp:
+            audio_bytes = resp.read()
+
+    audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+    helper = f'data:audio/mpeg;base64,{audio_b64}'
+    return f'<audio>{helper}</audio>'
+
 
 def build_sql_tool(llm,db_path=DATA_PATH):
     con = duckdb.connect(DB_FILE.as_posix())

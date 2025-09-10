@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
 from Backend.config.constants import MODEL_CONFIG, EXPLAIN_PROMPT
-from fastapi.responses import Response
-from openai import OpenAI
+from Backend.utils.tools import text_to_speech
 
 from Backend.services.chatbot_service import create_agent
 from Database.db_history import (
@@ -36,7 +35,7 @@ def create_conversation_route(body: ConversationCreate, current: CurrentClinic):
     """Create a new conversation for the current clinic."""
     conv_id = create_conversation(clinic_id=current["clinic_id"], title=body.title)
 
-    bots[conv_id] = create_agent(MODEL_CONFIG, PROMPT_CONFIG)
+    bots[conv_id] = create_agent(MODEL_CONFIG)
 
     conv = get_conversation(conversation_id=conv_id, clinic_id=current["clinic_id"])
     if not conv:
@@ -82,14 +81,20 @@ def send_message_route(conversation_id: int, payload: MessageIn, current: Curren
     add_message(conversation_id=conv.id, clinic_id=current["clinic_id"], role="user", content=content)
 
     if conv.id not in bots:
-        bots[conv.id] = create_agent(MODEL_CONFIG, PROMPT_CONFIG)
+        bots[conv.id] = create_agent(MODEL_CONFIG)
 
     chat_fn = bots[conv.id] # get the callable conversation function
     try:
         bot_reply = chat_fn(content)
         if is_image(bot_reply):
             explanation = chat_fn(EXPLAIN_PROMPT)
-            bot_reply = f"{bot_reply}\n\n{explanation}"
+            tts = text_to_speech(explanation)
+            clean_image = "".join(bot_reply.split())
+            bot_reply = f"<img>{clean_image}</img>\n\n{explanation}\n\n{tts}\n"
+        else:
+            tts = text_to_speech(bot_reply)
+            bot_reply = f"{bot_reply}\n\n{tts}\n"
+
     except Exception as e:
         raise HTTPException(status_code=500, detail="Assistant failed to reply") from e
 
@@ -111,38 +116,3 @@ def delete_conversation_route(conversation_id: int, current: CurrentClinic):
 
     bots.pop(conv.id, None)
     return {"ok": True}
-
-@router.get("/conversations/{conversation_id}/tts")
-def text_to_speech_route(conversation_id: int, current: CurrentClinic):
-    """Convert the last assistant message in a conversation to speech."""
-    conv = get_conversation(conversation_id=conversation_id, clinic_id=current["clinic_id"])
-    if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    msgs = list_messages(conversation_id=conv.id)
-
-    last_assistant_msg = next((m for m in reversed(msgs) if m["role"] == "assistant"), None)
-    if not last_assistant_msg:
-        raise HTTPException(status_code=400, detail="No assistant message to synthesize")
-
-    text_input = (last_assistant_msg.get("content") or "").strip()
-    if not text_input:
-        raise HTTPException(status_code=400, detail="Assistant message is empty")
-
-    client = OpenAI()
-
-    try:
-        with client.audio.speech.with_streaming_response.create(
-            model="gpt-4o-mini-tts",
-            voice="alloy",
-            input=text_input
-        ) as resp:
-            audio_bytes = resp.read()
-    except Exception:
-        with client.audio.speech.with_streaming_response.create(
-            model="gpt-4o-realtime-preview-2024-12-17",
-            voice="alloy",
-            input=text_input
-        ) as resp:
-            audio_bytes = resp.read()
-
-    return Response(content=audio_bytes, media_type="audio/mpeg")
