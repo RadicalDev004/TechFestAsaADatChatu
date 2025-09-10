@@ -2,14 +2,13 @@ import os
 import bcrypt
 
 from typing import Optional
-from Backend.repository.clinic_repo import validate_credentials
 from Backend.core.security import create_clinic_token
 from Database.db_register import Clinic
 from fastapi import Request
 from starlette.responses import HTMLResponse, RedirectResponse
 from Database.db_register import SessionLocal, Clinic
 from sqlalchemy.exc import IntegrityError
-from Backend.core.security import verify_secret,hash_secret
+from Backend.core.security import hash_secret
 
 COOKIE_NAME = "access_token"
 IS_SECURE = False
