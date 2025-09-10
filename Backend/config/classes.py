@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ModelConfig(BaseSettings):
-    model: str = "gpt-5-mini"
+    model: str = "gpt-4.1-mini"
     temperature: Optional[float] = Field(default=0.5, ge=0.0, le=2.0)
     top_p: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     max_tokens: PositiveInt = 2100
