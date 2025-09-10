@@ -9,6 +9,8 @@ from Backend.api.listFiles import router as list_files_router
 from starlette.responses import Response, HTMLResponse, RedirectResponse, StreamingResponse
 from Database.db_register import init_db
 from Database.db_history import init_db as init_history_db
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 app = FastAPI(title="Clinic Auth - MVP")
 
@@ -26,6 +28,9 @@ app.add_middleware(
 app.include_router(history_router)
 app.include_router(upload_router)
 app.include_router(list_files_router)
+
+BASE_DIR = Path(__file__).resolve().parent
+app.mount("/public", StaticFiles(directory=str(BASE_DIR / "public")), name="public")
 
 # Our dynamic router
 router = Router()
