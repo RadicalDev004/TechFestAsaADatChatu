@@ -19,14 +19,18 @@ from Backend.models.schemas import (
 )
 from Backend.core.deps import get_current_clinic
 from Backend.utils.tools import bots, is_image
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api", tags=["chatbot"])
 CurrentClinic = Annotated[dict, Depends(get_current_clinic)]
 
+class ConversationCreate(BaseModel):
+    title: str
+
 @router.post("/conversations", response_model=ConversationOut, status_code=201)
-def create_conversation_route(current: CurrentClinic):
+def create_conversation_route(body: ConversationCreate, current: CurrentClinic):
     """Create a new conversation for the current clinic."""
-    conv_id = create_conversation(clinic_id=current["clinic_id"], title="New conversation")
+    conv_id = create_conversation(clinic_id=current["clinic_id"], title=body.title)
 
     bots[conv_id] = create_agent(MODEL_CONFIG, PROMPT_CONFIG)
 

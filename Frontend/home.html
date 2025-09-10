@@ -638,15 +638,15 @@ fab.addEventListener('click', () => {
 });
 fsBtn.addEventListener('click', () => setFullscreen(!chatPanel.classList.contains('fullscreen')));
 
-// Conversation state
 let conversations = [
-  { id: cryptoRandomId(), title: 'Welcome', messages: [ { who: 'ai', text: 'Hi! I’m your local assistant. Ask me to find or summarize a document.' } ] }
+  //{ id: cryptoRandomId(), title: 'Welcome', messages: [ { who: 'ai', text: 'Hi! I’m your local assistant. Ask me to find or summarize a document.' } ] }
 ];
 let currentIndex = 0;
 
 function cryptoRandomId(){ return Math.random().toString(36).slice(2,10); }
 
 function renderConversations(){
+  console.log("Rendering conversations:", conversations);
   convList.innerHTML = '';
   conversations.forEach((c, idx) => {
     const li = document.createElement('li');
@@ -654,33 +654,28 @@ function renderConversations(){
     btn.type = 'button';
     btn.className = 'conv-btn' + (idx === currentIndex ? ' active' : '');
     btn.textContent = c.title;
-    btn.addEventListener('click', () => { currentIndex = idx; renderConversations(); renderMessages(); });
+    btn.addEventListener('click', () => { currentIndex = idx; renderMessages(c.id); renderConversations(); });
     li.appendChild(btn);
     convList.appendChild(li);
   });
 }
 
-function renderMessages(){
+function renderMessages(id){
   chatBody.innerHTML = '';
-  const msgs = conversations[currentIndex].messages;
-  for (const m of msgs){ appendMsg(m.who, m.text, false); }
+  //const msgs = conversations[currentIndex].messages;
+  //for (const m of msgs){ appendMsg(m.who, m.text, false); }
   chatBody.scrollTop = chatBody.scrollHeight;
 }
 
 newChatBtn.addEventListener('click', () => {
   const name = prompt("Enter a name for the new chat:", `Chat ${conversations.length + 1}`);
-  if (!name) return; // cancel if user presses Cancel or leaves blank
+  if (!name) return;
 
-  conversations.unshift({
-    id: cryptoRandomId(),
-    title: name,
-    messages: [
-      { who: 'ai', text: 'New chat started. How can I help?' }
-    ]
-  });
+  addConversation(name);
+
+  
   currentIndex = 0;
-  renderConversations();
-  renderMessages();
+  //renderMessages();
 });
 
 // Local echo demo
@@ -792,6 +787,61 @@ async function fetchFiles() {
     overlay.classList.remove('active');
   }
 
+  function getConversations() {
+    fetch('/api/conversations', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${getTokenFromCookie()}`
+          }
+        }).then(res => {
+          if (!res.ok) throw new Error('Delete failed');
+          return res.json();
+        }).then(result => {
+            
+            conversations = result || [];
+            if (conversations.length === 0) {
+              //conversations.push({ id: cryptoRandomId(), title: 'Welcome', messages: [ { who: 'ai', text: 'Hi! I’m your local assistant. Ask me to find or summarize a document.' } ] });
+            }
+            console.log('Conversations:', conversations);
+            currentIndex = 0;
+            renderConversations();
+        }).catch(err => {
+          console.warn(err);
+
+        }).finally(() => {
+
+        })        
+  }
+
+  function addConversation(convTitle) {
+      fetch('/api/conversations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${getTokenFromCookie()}`
+          },
+          body: JSON.stringify({ title: convTitle })
+        }).then(res => {
+          if (!res.ok) throw new Error('Delete failed');
+          return res.json();
+        }).then(result => {
+            console.log('Conversations:', result);
+            conversations.unshift({
+            id: result.id,
+            title: result.title,
+            messages: [
+            ]
+          });
+        }).catch(err => {
+          console.warn(err);
+
+        }).finally(() => {
+          renderConversations();
+          //renderMessages();
+        })  
+  }
+
 
 
 // Initial render
@@ -799,9 +849,7 @@ fetchFiles().then(files => {
   files.forEach(file => console.log(file));
 });
 
-
-renderConversations();
-renderMessages();
+getConversations();
   </script>
 
   <div class="uploading-overlay" id="uploadingOverlay" role="dialog" aria-modal="true" aria-labelledby="uploadingTitle" aria-describedby="uploadingDesc">
