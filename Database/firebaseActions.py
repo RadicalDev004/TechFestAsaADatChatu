@@ -15,8 +15,6 @@ bucket = storage.bucket()
 def upload_to_firebase(id, file):
     blob = bucket.blob(f"{id}/{file.filename}")
     blob.upload_from_file(file.file, content_type=file.content_type)
-    from Database.firebaseIngest import ingest_clinic_from_firebase
-    ingest_clinic_from_firebase(id)
 
 def download_from_firebase(id, file_name):
     blob = bucket.blob(f"{id}/{file_name}")

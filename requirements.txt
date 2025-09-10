@@ -17,10 +17,8 @@ langchain-openai~=0.3.32
 langchain~=0.3.27
 langchain-community~=0.3.29
 matplotlib~=3.10.6
-firebase_admin
 hypercorn
 jwt
-SQLAlchemy
 psycopg2-binary>=2.9
 tzlocal
 pip~=25.2
