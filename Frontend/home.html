@@ -922,7 +922,7 @@ chatForm.addEventListener('submit', (e) => {
         }).then(result => {
             console.log('Message sent:', result);
             let fullMsg = result.content;
-
+            chatBody.removeChild(chatBody.lastChild);
             let Imatch = fullMsg.match(/<img\b[^>]*>([\s\S]*?)<\/img>/i);
             let base64Img = Imatch ? Imatch[1].trim() : null;
             if (Imatch) {
@@ -937,7 +937,7 @@ chatForm.addEventListener('submit', (e) => {
               fullMsg = fullMsg.replace(Amatch[0], '').trim();
             }
 
-            chatBody.removeChild(chatBody.lastChild);
+            
             pushMsg('ai', fullMsg);
 
             if(Amatch) {

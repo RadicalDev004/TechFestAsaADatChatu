@@ -72,6 +72,9 @@ def send_message_route(conversation_id: int, payload: MessageIn, current: Curren
     conv = get_conversation(conversation_id=conversation_id, clinic_id=current["clinic_id"])
     if not conv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+    
+    from Database.firebaseIngest import ingest_clinic_from_firebase
+    ingest_clinic_from_firebase(current["clinic_id"])
 
     content = (payload.content or "").strip()
     if not content:
