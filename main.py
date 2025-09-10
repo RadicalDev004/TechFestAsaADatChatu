@@ -2,10 +2,13 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from Backend.utils.router import Router
-from Backend.api.auth import router as auth_router
+# from Backend.api.auth import router as auth_router
 from Backend.api.history import router as history_router
 from Backend.api.uploadFile import router as upload_router
+from Backend.api.listFiles import router as list_files_router
 from starlette.responses import Response, HTMLResponse, RedirectResponse, StreamingResponse
+from Database.db_register import init_db
+from Database.db_history import init_db as init_history_db
 
 app = FastAPI(title="Clinic Auth - MVP")
 
@@ -19,13 +22,15 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(auth_router)
+# app.include_router(auth_router)
 app.include_router(history_router)
 app.include_router(upload_router)
+app.include_router(list_files_router)
 
 # Our dynamic router
 router = Router()
-
+init_db()
+init_history_db()
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}

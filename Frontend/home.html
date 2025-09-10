@@ -279,7 +279,7 @@
   border-radius: 10px; padding: 10px 12px;
   background: linear-gradient(135deg, var(--primary), var(--accent));
 }
-.conv-list { list-style: none; margin: 0; padding: 8px; display: grid; gap: 8px; }
+.conv-list { width: 100%; list-style: none; margin: 0; padding: 8px; display: grid; gap: 8px; }
 .conv-btn {
   width: 100%; text-align: left; border: 2px solid transparent; padding: 10px 12px;
   border-radius: 12px; background: #e1e1e1; cursor: pointer; font-weight: 700; color: var(--text);
@@ -323,7 +323,71 @@
   background: var(--accent);
   color: white;
 }
+  :root {
+    --upload-bg: rgba(0,0,0,0.35);
+    --upload-card: #ffffff;
+    --upload-text: #2a2a2a;
+    --upload-muted: #6b7280;
+    --upload-accent: #ff6b6b;
+    --upload-shadow: 0 16px 40px rgba(0,0,0,0.18);
+    --upload-radius: 18px;
+  }
 
+  .uploading-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;                /* hidden by default */
+    place-items: center;
+    background: var(--upload-bg);
+    z-index: 9999;                /* above everything */
+    backdrop-filter: blur(1px);
+  }
+  .uploading-overlay.active { display: grid; }
+
+  .uploading-card {
+    width: min(360px, 92vw);
+    background: var(--upload-card);
+    color: var(--upload-text);
+    border-radius: var(--upload-radius);
+    box-shadow: var(--upload-shadow);
+    padding: 28px 22px 18px;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 16px;
+    text-align: center;
+    transform: translateY(8px) scale(0.98);
+    opacity: 0;
+    transition: transform 160ms ease, opacity 160ms ease;
+  }
+  .uploading-overlay.active .uploading-card {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  /* Spinner */
+  .uploading-spinner {
+    width: 68px; height: 68px;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 6px solid #eee;
+    border-top-color: var(--upload-accent);
+    animation: spin 900ms linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .uploading-text {
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: .2px;
+  }
+  .uploading-sub {
+    margin-top: 4px;
+    color: var(--upload-muted);
+    font-size: .95rem;
+    word-break: break-word;
+  }
   </style>
 </head>
 <body>
@@ -331,7 +395,7 @@
     <div class="topbar-inner">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"></div>
-        <div class="brand-name">Techfest App</div>
+        <div class="brand-name">{{clinic_name}}</div>
       </div>
       <div class="spacer"></div>
       <a class="link" href="/auth/index">Logout</a>
@@ -367,7 +431,7 @@
 <section class="chat-panel" id="chatPanel" aria-labelledby="chatTitle" aria-hidden="true" role="dialog">
   <header class="chat-head">
     <span class="status-dot" aria-hidden="true"></span>
-    <div id="chatTitle" class="chat-title">AI Assistant</div>
+    <div id="chatTitle" class="chat-title">AI Visualisation Assistant</div>
     <div class="spacer"></div>
     <button class="fs-btn" id="fsBtn" type="button" aria-pressed="false" aria-label="Toggle fullscreen">⤢ Fullscreen</button>
   </header>
@@ -398,7 +462,8 @@
     const emptyState = document.getElementById('emptyState');
 
     function renderDocs() {
-  docsGrid.innerHTML = '';
+      docsGrid.innerHTML = '';
+      console.log("Rendering docs:", docs);
   if (docs.length === 0) {
     emptyState.style.display = 'block';
     return;
@@ -420,20 +485,54 @@
       </div>
     `;
 
-    // Download handler (replace with actual download endpoint if needed)
-    card.querySelector('.download-btn').addEventListener('click', (e) => {
-      e.stopPropagation(); // prevent card click
-      alert('Download file: ' + d.title);
-      // Example: window.location.href = `/api/download/${d.id}`;
+    card.querySelector('.download-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+    const res = await fetch(`/api/download/${encodeURIComponent(d.title)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${getTokenFromCookie()}`
+      }
+    });
+    if (!res.ok) throw new Error('Download failed');
+
+    const { message: signedUrl } = await res.json(); // <-- parse JSON
+    // Open the signed URL (lets Firebase/Cloud Storage serve the bytes)
+    // Same-tab:
+    window.location.assign(signedUrl);
+    // Or new tab:
+    // window.open(signedUrl, '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.warn(err);
+    alert('Download failed.');
+  }
     });
 
     // Delete handler
     card.querySelector('.delete-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       if (confirm(`Delete document "${d.title}"?`)) {
-        docs.splice(index, 1);
-        renderDocs();
-        // Optionally: fetch(`/api/delete/${d.id}`, { method: 'DELETE' });
+        triggerLoad(d.title, "Deleting");
+        fetch(`/api/delete/${encodeURIComponent(d.title)}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${getTokenFromCookie()}`
+          },
+          body: JSON.stringify({ title: d.title })
+        }).then(res => {
+          if (!res.ok) throw new Error('Delete failed');
+        }).then(result => {
+          console.log('Deleted:', result);
+          docs.splice(index, 1);
+          renderDocs();
+        }).catch(err => {
+          console.warn(err);
+          alert('Delete failed.');
+
+        }).finally(() => {
+          endLoad();
+        })
       }
     });
 
@@ -469,24 +568,42 @@
       const doc = {
         title: file.name,
         size: fileSizeString(file.size || 0),
-        date: now.toLocaleDateString()
+        date: now.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
+        }) + " " + now.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false   // 24-hour format
+        })
       };
-      docs.unshift(doc);
-      renderDocs();
-
+      
+      
+      triggerLoad(file.name, "Uploading");
       // Upload to your backend if available
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const res = await fetch('/api/upload', 
+        { 
+          method: 'POST', 
+          headers: {
+            "Authorization": `Bearer ${getTokenFromCookie()}`
+          },
+          body: formData 
+        });
         if (!res.ok) throw new Error('Upload failed');
         const result = await res.json().catch(() => ({}));
         console.log('Uploaded:', result);
+        docs.unshift(doc);
+        renderDocs();
       } catch (err) {
         console.warn(err);
         alert('Upload failed. The document was added locally, but not uploaded.');
       } finally {
         fileInput.value = '';
+        endLoad();
       }
     });
 
@@ -604,9 +721,97 @@ function generateLocalReply(q) {
   return 'Got it. (This is a local demo assistant. Connect me to your backend for real AI.)';
 }
 
+function getTokenFromCookie() {
+  const tokenCookie = document.cookie
+    .split("; ")
+    .find(row => row.startsWith("access_token="));
+  return tokenCookie ? tokenCookie.split("=")[1] : null;
+}
+
+async function fetchFiles() {
+  console.log("Fetching files from backend...");
+  const token = getTokenFromCookie();
+  if (!token) {
+    console.error("No access_token found in cookies!");
+    return [];
+  }
+
+  try {
+    const response = await fetch("/api/listFiles", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`HTTP error! ${response.status} - ${errText}`);
+    }
+
+    const data = await response.json();
+    console.log("Fetched files:", data);
+    const gotDocs = data.files.map(f => ({
+    id: f.path,     
+    title: f.name,   
+    size: f.size,     
+    date: f.updated     
+  }));
+  if(gotDocs.length != 0) {
+    emptyState.style.display = 'none';
+  }
+  for (const [index, d] of gotDocs.entries()) {
+    const doc = {
+        title: d.title,
+        size: d.size,
+        date: d.date
+      };
+      docs.unshift(doc);
+  }
+  renderDocs();
+    return data.files;
+  } catch (error) {
+    console.error("Error fetching files:", error);
+    return [];
+  }
+}
+
+  function triggerLoad(filename, info = '') {
+    const overlay = document.getElementById('uploadingOverlay');
+    const titleEl = document.getElementById('uploadingTitle');
+    const infoEl = document.getElementById('uploadingDesc');
+
+    titleEl.textContent = info + '...';
+    infoEl.textContent = info + ' ' + filename;
+    overlay.classList.add('active');
+  }
+
+  function endLoad() {
+    const overlay = document.getElementById('uploadingOverlay');
+    overlay.classList.remove('active');
+  }
+
+
+
 // Initial render
+fetchFiles().then(files => {
+  files.forEach(file => console.log(file));
+});
+
+
 renderConversations();
 renderMessages();
   </script>
+
+  <div class="uploading-overlay" id="uploadingOverlay" role="dialog" aria-modal="true" aria-labelledby="uploadingTitle" aria-describedby="uploadingDesc">
+  <div class="uploading-card" role="status" aria-live="polite">
+    <div class="uploading-spinner" aria-hidden="true"></div>
+    <div>
+      <div id="uploadingTitle" class="uploading-text">Uploading…</div>
+      <div id="uploadingDesc" class="uploading-sub">uploading</div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

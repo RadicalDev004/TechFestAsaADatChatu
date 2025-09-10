@@ -2,6 +2,7 @@ from pathlib import Path
 from Backend.config.classes import ModelConfig
 
 MODEL_CONFIG = ModelConfig()
+
 DB_FILE = Path(__file__).resolve().parents[2] / "data" / "clinic.duckdb"
 DATA_PATH = f"duckdb:///{DB_FILE.as_posix()}"
 EXPLAIN_PROMPT = (

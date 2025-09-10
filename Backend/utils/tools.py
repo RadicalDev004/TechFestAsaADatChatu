@@ -25,6 +25,7 @@ def build_sql_tool(llm,db_path=DATA_PATH):
     sql_agent = create_sql_agent(llm, db=db, verbose=True, top_k=100)
 
     @tool("sql_query_tool")
+
     def run_sql(natural_language: str) -> str:
         """Ask natural language questions about the database and get structured results."""
         return sql_agent.invoke({"input": natural_language})
@@ -33,6 +34,7 @@ def build_sql_tool(llm,db_path=DATA_PATH):
 
 @tool("make_chart", return_direct=True)
 def make_chart(data_from_sql_query_tool: list, x: str, y: str, chart: str = "bar") -> str:
+
     """Create a chart from SQL results.
     Args:
         data_from_sql_query_tool: List of dicts containing query results.

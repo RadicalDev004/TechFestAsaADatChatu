@@ -1,87 +1,93 @@
-import duckdb, secrets
-from pathlib import Path
+import secrets
+import os
 from typing import Optional
 from Backend.core.security import hash_secret, verify_secret
+import time
 
-DB = Path("./data/clinic.duckdb")
-
-
-def _new_id() -> str:
-    # 6 hex chars, lowercase (e.g., "70b5bd")
-    return secrets.token_hex(3)
-
-
-def ensure_table() -> None:
-    con = duckdb.connect(str(DB))
-    con.execute("""
-    CREATE TABLE IF NOT EXISTS clinics (
-      clinic_id VARCHAR(6) PRIMARY KEY,
-      name TEXT,
-      email TEXT,
-      password_hash TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      CHECK (length(clinic_id)=6),
-      CHECK (regexp_full_match(clinic_id, '^[0-9a-f]{6}$'))
-    );
-    """)
-    con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_clinics_id ON clinics(clinic_id);")
-    con.close()
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, func, UniqueConstraint, CheckConstraint
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import OperationalError
 
 
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://postgres:postgres@db:5432/postgres"
+)
 
-def register_clinic(name: str, email : str, password_plain: str) -> str:
-    """Generate a unique clinic_id and insert with bcrypt hash."""
-    ensure_table()
-    con = duckdb.connect(str(DB))
-    # generate an ID not present in DB
-    for _ in range(20):
-        cid = _new_id()
-        exists = con.execute("SELECT 1 FROM clinics WHERE clinic_id = ? LIMIT 1;", [cid]).fetchone()
-        if not exists:
-            break
-    else:
-        con.close()
-        raise RuntimeError("Could not generate unique clinic_id")
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,          # drops dead connections gracefully
+    future=True
+)
 
-    pwd_hash = hash_secret(password_plain)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+Base = declarative_base()
 
-    con.execute(
-        "INSERT INTO clinics (clinic_id, name, email, password_hash) VALUES (?, ?, ?, ?);",
-        [cid, name, email, pwd_hash],
+class Clinic(Base):
+
+    __tablename__ = 'clinics'
+    __table_args__ = (
+        UniqueConstraint("clinic_id", name="uq_user_username"),
+        UniqueConstraint("email", name="uq_user_email"),
+        CheckConstraint("char_length(clinic_id) = 6", name="ck_clinic_id_length"),
+        CheckConstraint("clinic_id ~ '^[0-9a-f]{6}$'", name="ck_clinic_id_format"),
     )
-    df = con.execute("SELECT * FROM clinics;").fetchdf()
-    con.close()
-    
-    
-    print(df)
 
-    return cid
+    clinic_id= Column(String(6), primary_key=True, index=True)
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    email = Column(String(255), nullable=False, unique=True, index=True)
+    password_hash = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    @staticmethod
+    def _new_id() -> str:
+        # 6 hex chars, lowercase (e.g., "70b5bd")
+        return secrets.token_hex(3)
+
+    @staticmethod
+    def get_clinic_name(clinic_email: str) -> Optional[str]:
+        session  = SessionLocal()
+        try:
+            clinic = session.query(Clinic).filter(Clinic.email == clinic_email).first()
+            return clinic.name if clinic else None
+        finally:
+            session.close()
+
+    @staticmethod
+    def get_clinic_id_by_email(clinic_email: str) -> Optional[str]:
+        session  = SessionLocal()
+        try:
+            clinic = session.query(Clinic).filter(Clinic.email == clinic_email).first()
+            return clinic.clinic_id if clinic else None
+        finally:
+            session.close()
+
+    @staticmethod
+    def authenticate(clinic_email: str, password_plain: str) -> bool:
+        session = SessionLocal()
+        try:
+            clinic = session.query(Clinic).filter(Clinic.email == clinic_email).first()
+            if clinic and verify_secret(password_plain, clinic.password_hash):
+                return True
+            return False
+        finally:
+            session.close()
+
+def init_db(max_retries: int = 30, delay_seconds: float = 1.0):
+    # wait for DB to be truly reachable
+    for attempt in range(1, max_retries + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except OperationalError as e:
+            if attempt == max_retries:
+                raise
+            time.sleep(delay_seconds)
 
 
-def get_clinic_name(clinic_email: str) -> Optional[str]:
-    ensure_table()
-    con = duckdb.connect(str(DB))
-    row = con.execute("SELECT name FROM clinics WHERE email = ? LIMIT 1;", [clinic_email]).fetchone()
-    con.close()
-    return row[0] if row else None
-
-
-def authenticate(clinic_email: str, password_plain: str) -> bool:
-    """Read stored bcrypt hash and verify the plain password."""
-    ensure_table()
-    con = duckdb.connect(str(DB))
-    row = con.execute(
-        "SELECT password_hash FROM clinics WHERE email = ? LIMIT 1;",
-        [clinic_email],
-    ).fetchone()
-    con.close()
-    if not row:
-        return False
-    return verify_secret(password_plain, row[0])
-
-
-if __name__ == "__main__":
-    ensure_table()
-    cid = register_clinic("Demo Clinic", "demo_password")
-    print("Registered clinic_id:", cid)
-    print("Auth OK?:", authenticate(cid, "demo_password"))
+# if __name__ == "__main__":
+#     ensure_table()
+#     cid = register_clinic("Demo Clinic", "demo_password")
+#     print("Registered clinic_id:", cid)
+#     print("Auth OK?:", authenticate(cid, "demo_password"))
