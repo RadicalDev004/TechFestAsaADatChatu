@@ -41,16 +41,19 @@ def text_to_speech(s:str) -> str:
     return f'<audio>{helper}</audio>'
 
 
-def build_sql_tool(llm,db_path=DATA_PATH):
+def build_sql_tool(llm, clinic_code, db_path=DATA_PATH):
     con = duckdb.connect(DB_FILE.as_posix())
-    con.execute('CREATE OR REPLACE TABLE patients AS SELECT * FROM "test_id clinic=sons";')
+    tables = con.execute("SHOW TABLES").fetchall()
+    to_be_included = []
+    for (t,) in tables:
+        if t.startswith(clinic_code):
+            to_be_included.append(t)
     con.close()
 
-    db = SQLDatabase.from_uri(db_path, include_tables=["patients"])
-    sql_agent = create_sql_agent(llm, db=db, verbose=True, top_k=100)
+    db = SQLDatabase.from_uri(db_path, include_tables=to_be_included)
+    sql_agent = create_sql_agent(llm, db=db, top_k=100)
 
     @tool("sql_query_tool")
-
     def run_sql(natural_language: str) -> str:
         """Ask natural language questions about the database and get structured results."""
         return sql_agent.invoke({"input": natural_language})

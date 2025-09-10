@@ -53,7 +53,7 @@ MAIN_PROMPT = ("""
         - Use SQL syntax or write SQL queries directly. Let the tool handle that.
         - Create charts on your own. Let the tool handle that.
         - Use the charting tool without first querying data with the SQL tool.
-        - Invent schema fields, use only the fields and table name found in the DATABASE SCHEMA.  
+        - Invent schema fields, use only the fields and tables found in the DATABASE SCHEMA.  
         - Recommend or assume values without querying the database.  
 
     6. When filtering string/text columns:
@@ -64,6 +64,7 @@ MAIN_PROMPT = ("""
     - If user asks for **data**: return the results + explanation.  
     - If user asks for **chart**: return chart image + explanation.  
     - Always be concise, factual, and respectful.
+    - If you don't know which table or field to use, ask for clarification.
     
     ### DATABASE SCHEMA - use only these tables and fields:
     """)

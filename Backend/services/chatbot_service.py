@@ -8,11 +8,12 @@ from Backend.utils.validators import language_filter
 
 
 def create_agent(
-    model: ModelConfig
+    model: ModelConfig,
+    clinic_code: str
 ):
     try:
         llm = build_llm(model)
-        sql_tool = build_sql_tool(llm)
+        sql_tool = build_sql_tool(llm, clinic_code)
         schema = sql_tool("What tables are there? And what are their schemas?")["output"]
         tools = [sql_tool, make_chart] # Add tools if needed
 
@@ -58,16 +59,3 @@ def create_agent(
         def dead_chatbot(_: str, err=factoryError):
             return f"Error appeared at factory level: {err}."
         return dead_chatbot
-
-if __name__ == "__main__":
-    model_cfg = ModelConfig()
-    chat = create_agent(model_cfg)
-
-    print("Agent is ready. Type 'exit' to quit.\n")
-
-    while True:
-        user_input = input("You: ")
-        if user_input.lower().strip() in {"exit", "quit"}:
-            break
-        response = chat(user_input)
-        print("Bot :", response, "\n")

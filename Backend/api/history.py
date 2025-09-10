@@ -35,7 +35,7 @@ def create_conversation_route(body: ConversationCreate, current: CurrentClinic):
     """Create a new conversation for the current clinic."""
     conv_id = create_conversation(clinic_id=current["clinic_id"], title=body.title)
 
-    bots[conv_id] = create_agent(MODEL_CONFIG)
+    bots[conv_id] = create_agent(MODEL_CONFIG, current["clinic_id"])
 
     conv = get_conversation(conversation_id=conv_id, clinic_id=current["clinic_id"])
     if not conv:
@@ -81,7 +81,7 @@ def send_message_route(conversation_id: int, payload: MessageIn, current: Curren
     add_message(conversation_id=conv.id, clinic_id=current["clinic_id"], role="user", content=content)
 
     if conv.id not in bots:
-        bots[conv.id] = create_agent(MODEL_CONFIG)
+        bots[conv.id] = create_agent(MODEL_CONFIG, current["clinic_id"])
 
     chat_fn = bots[conv.id] # get the callable conversation function
     try:
