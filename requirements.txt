@@ -21,3 +21,4 @@ firebase_admin
 hypercorn
 jwt
 SQLAlchemy
+psycopg2-binary>=2.9

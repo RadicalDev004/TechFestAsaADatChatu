@@ -1,11 +1,15 @@
 import os
 import bcrypt
+
 from typing import Optional
 from Backend.repository.clinic_repo import validate_credentials
 from Backend.core.security import create_clinic_token
-from Database.db_register import get_clinic_name,register_clinic
+from Database.db_register import Clinic
 from fastapi import Request
 from starlette.responses import HTMLResponse, RedirectResponse
+from Database.db_register import SessionLocal, Clinic
+from sqlalchemy.exc import IntegrityError
+from Backend.core.security import verify_secret,hash_secret
 
 COOKIE_NAME = "access_token"
 IS_SECURE = False
@@ -31,7 +35,7 @@ class AuthController:
         print(f"id={email}, password={password}")
 
         if validate_credentials(email, password):
-            token = create_clinic_token(clinic_email = email, clinic_name = get_clinic_name(email), plan="standard")
+            token = create_clinic_token(clinic_email = email, clinic_name = Clinic.get_clinic_name(email), plan="standard")
             resp = RedirectResponse(url="/home/index", status_code=302)
             resp.set_cookie(
                 COOKIE_NAME,
@@ -55,21 +59,50 @@ class AuthController:
     async def register(self, request: Request):
         if request.method != 'POST':
             return RedirectResponse(url="/auth/index")
-        
-        form = await request.form()
-        clinic_name = form.get('username') or ''
-        email = form.get('email') or ''
-        password = form.get('password')
 
-        if not clinic_name or not password :
+        form = await request.form()
+        clinic_name = (form.get('username') or '').strip()
+        email = (form.get('email') or '').strip().lower()
+        password = form.get('password') or ''
+
+        if not clinic_name or not email or not password:
             return """
                 <script>
                   alert("Please fill all fields.");
                   window.location.href = "/auth/index";
                 </script>
             """
-        
-        register_clinic(clinic_name, email, password)
+
+        # Hash the password before storing
+        pwd_hash = hash_secret(password)
+
+        try:
+            with SessionLocal() as session:
+                clinic = Clinic(
+                    clinic_id=Clinic._new_id(),
+                    name=clinic_name,
+                    email=email,
+                    password_hash=pwd_hash,
+                )
+                session.add(clinic)
+                session.commit()
+
+        except IntegrityError as e:
+            # Optional: make messages smarter using e.orig (psycopg2) to detect constraint
+            # For now, show generic duplicate message.
+            return """
+                <script>
+                  alert("User already exists (username or email).");
+                  window.location.href = "/auth/index";
+                </script>
+            """
+        except Exception:
+            return """
+                <script>
+                  alert("Registration failed due to a server error.");
+                  window.location.href = "/auth/index";
+                </script>
+            """
 
         return HTMLResponse("""
             <script>
@@ -77,5 +110,4 @@ class AuthController:
               window.location.href = "/auth/index";
             </script>
         """)
-
 

@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from Backend.core.security import hash_secret, verify_secret
+import time
 
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, func, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -13,7 +14,7 @@ DB = Path("./data/clinic.duckdb")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://smartlib:smartlib@db:5432/smartlib"
+    "postgresql+psycopg2://postgres:postgres@db:5432/postgres"
 )
 
 engine = create_engine(
@@ -64,6 +65,7 @@ class Clinic(Base):
         finally:
             session.close()
 
+    @staticmethod
     def authenticate(clinic_email: str, password_plain: str) -> bool:
         session = SessionLocal()
         try:
@@ -73,6 +75,17 @@ class Clinic(Base):
             return False
         finally:
             session.close()
+
+def init_db(max_retries: int = 30, delay_seconds: float = 1.0):
+    # wait for DB to be truly reachable
+    for attempt in range(1, max_retries + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except OperationalError as e:
+            if attempt == max_retries:
+                raise
+            time.sleep(delay_seconds)
 
 
 # if __name__ == "__main__":
