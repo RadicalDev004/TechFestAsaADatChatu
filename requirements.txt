@@ -22,3 +22,12 @@ hypercorn
 jwt
 SQLAlchemy
 psycopg2-binary>=2.9
+pip~=25.2
+typing_extensions~=4.15.0
+attrs~=25.3.0
+distro~=1.9.0
+protobuf~=6.32.0
+cryptography~=45.0.7
+openai~=1.106.1
+starlette~=0.37.2
+firebase_admin~=7.1.0

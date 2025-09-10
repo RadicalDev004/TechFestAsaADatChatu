@@ -165,3 +165,7 @@ def add_message(conversation_id: int, clinic_id: str, role: Role, content: str) 
         msgs = r.messages or []
         msgs.append({"role": role, "content": content})
         r.messages = msgs  # reassign to mark dirty (MutableList also tracks append)
+
+def title_from_text(text: str, max_words: int = 8) -> str:
+    words = (text or "").strip().split()
+    return " ".join(words[:max_words]) if words else "New conversation"
