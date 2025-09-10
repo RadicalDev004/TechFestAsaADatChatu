@@ -642,6 +642,7 @@ let conversations = [
   //{ id: cryptoRandomId(), title: 'Welcome', messages: [ { who: 'ai', text: 'Hi! I’m your local assistant. Ask me to find or summarize a document.' } ] }
 ];
 let currentIndex = 0;
+let maxIndex = 0;
 
 function cryptoRandomId(){ return Math.random().toString(36).slice(2,10); }
 
@@ -657,13 +658,36 @@ function renderConversations(){
     btn.addEventListener('click', () => { currentIndex = idx; renderMessages(c.id); renderConversations(); });
     li.appendChild(btn);
     convList.appendChild(li);
+    if(idx > maxIndex) maxIndex = idx;
   });
 }
 
 function renderMessages(id){
   chatBody.innerHTML = '';
+  if(id == null) return;
+
+  fetch(`/api/conversations/${id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${getTokenFromCookie()}`
+          }
+        }).then(res => {
+          if (!res.ok) throw new Error('Fetch failed');
+          return res.json();
+        }).then(result => {
+            const msgs = result.messages || [];
+            for (const m of msgs){ pushMsg(m.role == "user" ? "me" : "ai", m.content); }
+        }).catch(err => {
+          console.warn(err);
+
+        }).finally(() => {
+
+        })
+
   //const msgs = conversations[currentIndex].messages;
   //for (const m of msgs){ appendMsg(m.who, m.text, false); }
+
   chatBody.scrollTop = chatBody.scrollHeight;
 }
 
@@ -672,10 +696,6 @@ newChatBtn.addEventListener('click', () => {
   if (!name) return;
 
   addConversation(name);
-
-  
-  currentIndex = 0;
-  //renderMessages();
 });
 
 // Local echo demo
@@ -683,13 +703,38 @@ chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = chatText.value.trim();
   if (!text) return;
+  if(conversations.length === 0) {
+    alert('Please create a new chat first.');
+    return;
+  }
   pushMsg('me', text);
+  fetch('/api/conversations/' + conversations[currentIndex].id + '/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            "Authorization": `Bearer ${getTokenFromCookie()}`
+          },
+          body: JSON.stringify({ content: text })
+        }).then(res => {
+          if (!res.ok) throw new Error('Send failed');
+          return res.json();
+        }).then(result => {
+            console.log('Message sent:', result);
+            pushMsg('ai', result.content);
+            console.log(result);
+        }).catch(err => {
+          console.warn(err);
+          alert('Send failed.');
+
+        }).finally(() => {
+
+        })
   chatText.value = '';
-  setTimeout(() => { const reply = generateLocalReply(text); pushMsg('ai', reply); }, 300);
+  
 });
 
 function pushMsg(who, text){
-  conversations[currentIndex].messages.push({ who, text });
+  //conversations[currentIndex].messages.push({ who, text });
   appendMsg(who, text, true);
 }
 
@@ -810,7 +855,7 @@ async function fetchFiles() {
           console.warn(err);
 
         }).finally(() => {
-
+          renderMessages(conversations.length > 0 ? conversations[0].id : null);
         })        
   }
 
@@ -837,6 +882,7 @@ async function fetchFiles() {
           console.warn(err);
 
         }).finally(() => {
+          currentIndex = 0;
           renderConversations();
           //renderMessages();
         })  
