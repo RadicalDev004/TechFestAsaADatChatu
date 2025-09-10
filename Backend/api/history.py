@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated
+from fastapi.responses import Response
+from openai import OpenAI
 from Backend.config.constants import MODEL_CONFIG, PROMPT_CONFIG, EXPLAIN_PROMPT
 from Backend.services.chatbot_service import create_agent
 from Database.db_history import (
@@ -10,6 +12,7 @@ from Database.db_history import (
     add_message,
     list_messages,
     rename_conversation,
+    title_from_text,
 )
 from Backend.models.schemas import (
     ConversationOut,
@@ -75,7 +78,7 @@ def send_message_route(conversation_id: int, payload: MessageIn, current: Curren
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message content required")
 
     # Add user message
-    add_message(conversation_id=conv.id, clinic_id = conv.clinic_id, role="user", content=content)
+    add_message(conversation_id=conv.id, clinic_id=current["clinic_id"], role="user", content=content)
 
     if conv.id not in bots:
         bots[conv.id] = create_agent(MODEL_CONFIG, PROMPT_CONFIG)
@@ -89,11 +92,10 @@ def send_message_route(conversation_id: int, payload: MessageIn, current: Curren
     except Exception as e:
         raise HTTPException(status_code=500, detail="Assistant failed to reply") from e
 
-    add_message(conversation_id=conv.id, clinic_id = conv.clinic_id, role="assistant", content=bot_reply)
+    add_message(conversation_id=conv.id, clinic_id=current["clinic_id"], role="assistant", content=bot_reply)
 
     #if conv.title == "New conversation":
     #    rename_conversation(conversation_id=conv.id, clinic_id=current["clinic_id"], new_title=title_from_text(content))
-
 
     return MessageOut(id=0, role="assistant", content=bot_reply)
 
@@ -108,3 +110,38 @@ def delete_conversation_route(conversation_id: int, current: CurrentClinic):
 
     bots.pop(conv.id, None)
     return {"ok": True}
+
+@router.get("/conversations/{conversation_id}/tts")
+def text_to_speech_route(conversation_id: int, current: CurrentClinic):
+    """Convert the last assistant message in a conversation to speech."""
+    conv = get_conversation(conversation_id=conversation_id, clinic_id=current["clinic_id"])
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    msgs = list_messages(conversation_id=conv.id)
+
+    last_assistant_msg = next((m for m in reversed(msgs) if m["role"] == "assistant"), None)
+    if not last_assistant_msg:
+        raise HTTPException(status_code=400, detail="No assistant message to synthesize")
+
+    text_input = (last_assistant_msg.get("content") or "").strip()
+    if not text_input:
+        raise HTTPException(status_code=400, detail="Assistant message is empty")
+
+    client = OpenAI()
+
+    try:
+        with client.audio.speech.with_streaming_response.create(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            input=text_input
+        ) as resp:
+            audio_bytes = resp.read()
+    except Exception:
+        with client.audio.speech.with_streaming_response.create(
+            model="gpt-4o-realtime-preview-2024-12-17",
+            voice="alloy",
+            input=text_input
+        ) as resp:
+            audio_bytes = resp.read()
+
+    return Response(content=audio_bytes, media_type="audio/mpeg")
