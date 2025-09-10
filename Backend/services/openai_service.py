@@ -1,12 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI
-from Backend.config.classes import ModelConfig, PromptConfig
+from Backend.config.classes import ModelConfig
 
 
-def build_prompt(prompt_config: PromptConfig) -> ChatPromptTemplate:
+def build_prompt(prompt: str) -> ChatPromptTemplate:
     return ChatPromptTemplate.from_messages(
         [
-            ("system", prompt_config.instructions),
+            ("system", prompt),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}")
