@@ -389,6 +389,136 @@
     font-size: .95rem;
     word-break: break-word;
   }
+
+  /* === Image Message (AI) === */
+.img-msg {
+  position: relative;
+  display: inline-block;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(255,107,107,0.25);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+}
+.img-msg img {
+  display: block;
+  max-width: min(420px, 70vw);
+  height: auto;
+  object-fit: cover;
+}
+.img-msg .img-bar {
+  position: absolute; inset: auto 8px 8px 8px;
+  display: flex; gap: 8px; justify-content: space-between; align-items: center;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,107,107,0.25);
+  border-radius: 10px;
+  padding: 6px 8px;
+  backdrop-filter: blur(4px);
+}
+.img-msg .img-meta {
+  font-size: .9rem; color: var(--muted); font-weight: 600;
+}
+.img-msg .img-actions { display: flex; gap: 6px; }
+.img-msg .img-actions button {
+  border: none; cursor: pointer; padding: 6px 8px; border-radius: 8px;
+  background: #fff; color: var(--text); font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: background 120ms ease, transform 120ms ease;
+}
+.img-msg .img-actions button:hover {
+  background: rgba(255,138,61,0.12);
+  transform: translateY(-1px);
+}
+/* Optional caption under image */
+.img-caption {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .95rem;
+}
+
+/* === Voice Message (AI) === */
+.voice-msg {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;                         /* nests inside your .bubble.ai */
+  border: 1px solid rgba(255,107,107,0.25);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.05) inset;
+}
+/* Play button */
+.voice-btn {
+  width: 44px; height: 44px; border-radius: 999px;
+  border: none; cursor: pointer; color: #fff; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--primary));
+  box-shadow: 0 10px 22px rgba(255,138,61,0.35);
+  display: grid; place-items: center;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+.voice-btn:hover { transform: translateY(-1px) scale(1.02); filter: saturate(1.05); }
+
+/* Timeline + times */
+.voice-track { display: grid; gap: 8px; min-width: 180px; }
+.voice-time {
+  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  font-size: .9rem; color: var(--muted); font-weight: 700;
+}
+
+/* Progress bar */
+.voice-progress {
+  position: relative; height: 6px; border-radius: 999px; overflow: hidden;
+  background: rgba(255,138,61,0.18);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+.voice-progress .bar {
+  position: absolute; inset: 0 auto 0 0;
+  width: 0%;                                  /* set dynamically */
+  background: linear-gradient(90deg, var(--accent), var(--primary));
+  box-shadow: 0 3px 12px rgba(255,107,107,0.35);
+}
+
+/* “Fake” waveform (optional) */
+.voice-wave {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 3px;
+  align-items: end; gap: 2px; height: 26px; overflow: hidden;
+}
+.voice-wave span {
+  display: block; width: 3px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  opacity: .9;
+  animation: wobble 1000ms ease-in-out infinite;
+}
+.voice-wave span:nth-child(odd) { animation-duration: 1200ms; opacity: .8; }
+.voice-wave span:nth-child(3n) { animation-duration: 900ms; opacity: .7; }
+@keyframes wobble {
+  0%,100% { height: 20%; }
+  50% { height: 100%; }
+}
+
+/* Right-side metadata */
+.voice-meta { display: grid; gap: 6px; align-items: center; justify-items: end; }
+.voice-chip {
+  background: rgba(255,107,107,0.10);
+  border: 1px solid rgba(255,107,107,0.25);
+  color: var(--accent-700);
+  font-weight: 800; font-size: .85rem;
+  padding: 6px 10px; border-radius: 999px;
+}
+.voice-action {
+  border: none; cursor: pointer; padding: 6px 10px; border-radius: 8px;
+  background: #fff; color: var(--text); font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.voice-action:hover { background: rgba(255,138,61,0.12); }
+
+/* Responsive tweaks */
+@media (max-width: 520px) {
+  .voice-msg { grid-template-columns: auto 1fr; }
+  .voice-meta { grid-column: 1 / -1; justify-items: start; }
+}
+
   </style>
 </head>
 <body>
@@ -678,7 +808,30 @@ function renderMessages(id){
           return res.json();
         }).then(result => {
             const msgs = result.messages || [];
-            for (const m of msgs){ pushMsg(m.role == "user" ? "me" : "ai", m.content); }
+            for (const m of msgs){ 
+
+              let fullMsg = m.content;
+
+              let Imatch = fullMsg.match(/<image\b[^>]*>([\s\S]*?)<\/image>/i);
+              let base64Img = Imatch ? Imatch[1].trim() : null;
+              if (Imatch) {
+                fullMsg = fullMsg.replace(Imatch[0], '').trim();
+                createImageMessage(base64Img);
+              }
+
+              let Amatch = fullMsg.match(/<audio\b[^>]*>([\s\S]*?)<\/audio>/i);
+              let base64Audio = Amatch ? Amatch[1].trim() : null;
+
+              if (Amatch) {
+                fullMsg = fullMsg.replace(Amatch[0], '').trim();
+              }
+
+              pushMsg(m.role == "user" ? "me" : "ai", m.content); 
+
+              if(Amatch) {
+                createVoiceMessage(base64Audio);
+              }
+            }
         }).catch(err => {
           console.warn(err);
 
@@ -721,7 +874,27 @@ chatForm.addEventListener('submit', (e) => {
           return res.json();
         }).then(result => {
             console.log('Message sent:', result);
-            pushMsg('ai', result.content);
+            let fullMsg = result.content;
+
+            let Imatch = fullMsg.match(/<image\b[^>]*>([\s\S]*?)<\/image>/i);
+            let base64Img = Imatch ? Imatch[1].trim() : null;
+            if (Imatch) {
+              fullMsg = fullMsg.replace(Imatch[0], '').trim();
+              createImageMessage(base64Img);
+            }
+
+            let Amatch = fullMsg.match(/<audio\b[^>]*>([\s\S]*?)<\/audio>/i);
+            let base64Audio = Amatch ? Amatch[1].trim() : null;
+
+            if (Amatch) {
+              fullMsg = fullMsg.replace(Amatch[0], '').trim();
+            }
+            
+            pushMsg('ai', fullMsg);
+
+            if(Amatch) {
+              createVoiceMessage(base64Audio);
+            }
             console.log(result);
         }).catch(err => {
           console.warn(err);
@@ -889,6 +1062,95 @@ async function fetchFiles() {
         })  
   }
 
+  // Utility: wrapper
+function makeMsgWrapper() {
+  const msg = document.createElement('div');
+  msg.className = 'msg';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ai';
+  msg.appendChild(bubble);
+  return { msg, bubble };
+}
+
+// === Create AI Image Message ===
+function createImageMessage(base64) {
+  const { msg, bubble } = makeMsgWrapper();
+
+  const imgMsg = document.createElement('div');
+  imgMsg.className = 'img-msg';
+  imgMsg.innerHTML = `
+    <img src="data:image/png;base64,${base64}" alt="AI generated image" />
+    <div class="img-bar">    </div>
+  `;
+
+  bubble.appendChild(imgMsg);
+  document.getElementById('chatBody').appendChild(msg);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+// === Create AI Voice Message ===
+function createVoiceMessage(base64) {
+  const { msg, bubble } = makeMsgWrapper();
+
+  const voiceMsg = document.createElement('div');
+  voiceMsg.className = 'voice-msg';
+
+  // Hidden audio
+  const audio = document.createElement('audio');
+  audio.src = `data:audio/wav;base64,${base64}`;
+  audio.preload = 'auto';
+
+  // Play button
+  const playBtn = document.createElement('button');
+  playBtn.className = 'voice-btn';
+  playBtn.textContent = '▶';
+
+  playBtn.addEventListener('click', () => {
+    if (audio.paused) {
+      audio.play();
+      playBtn.textContent = '⏸';
+    } else {
+      audio.pause();
+      playBtn.textContent = '▶';
+    }
+  });
+
+  // Progress bar
+  const voiceTrack = document.createElement('div');
+  voiceTrack.className = 'voice-track';
+  voiceTrack.innerHTML = `
+    <div class="voice-progress"><div class="bar"></div></div>
+  `;
+
+  const bar = voiceTrack.querySelector('.bar');
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration) {
+      bar.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+    }
+  });
+  audio.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+
+  // Meta
+  const meta = document.createElement('div');
+  meta.className = 'voice-meta';
+  meta.innerHTML = `<button class="voice-action" type="button">Download</button>`;
+  meta.querySelector('.voice-action').addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.href = audio.src;
+    link.download = 'voice-message.wav';
+    link.click();
+  });
+
+  // Build structure
+  voiceMsg.appendChild(playBtn);
+  voiceMsg.appendChild(voiceTrack);
+  voiceMsg.appendChild(meta);
+  bubble.appendChild(voiceMsg);
+  bubble.appendChild(audio);
+
+  document.getElementById('chatBody').appendChild(msg);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
 
 
 // Initial render

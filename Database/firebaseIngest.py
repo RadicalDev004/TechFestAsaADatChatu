@@ -44,7 +44,7 @@ def _quote_identifier(ident: str) -> str:
     return '"' + ident.replace('"', '""') + '"'
 
 def _table_name_for(clinic_id: str, csv_path: Path) -> str:
-    return f"{clinic_id} {csv_path.stem}"
+    return f"{clinic_id}_{csv_path.stem}"
 
 def _ingest_one(con: duckdb.DuckDBPyConnection, table_name: str, csv_path: Path) -> int:
     try:
@@ -91,6 +91,11 @@ def ingest_clinic_from_firebase(clinic_id: str) -> None:
             rows = _ingest_one(con, tname, csv_path)
             print(f"Ingested {rows} rows into table: {tname}")
     finally:
+        #output all table names
+        tables = con.execute("SHOW TABLES").fetchall()
+        print("Tables in DB:")
+        for (t,) in tables:
+            print(f"- {t}")
         con.close()
 
 if __name__ == "__main__":
