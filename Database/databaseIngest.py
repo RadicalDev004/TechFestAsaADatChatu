@@ -1,6 +1,7 @@
 # Database/databaseIngest.py
 import duckdb, pandas as pd, unicodedata, hashlib, re
 from pathlib import Path
+from db import get_engine
 
 CSV = Path("./healthcare_dataset.csv")  # adjust if needed
 DB = Path("./data/clinic.duckdb")
@@ -99,19 +100,18 @@ def ingestion():
     print(f"Dropped {before - after} rows due to duplicate patient names.")
 
     # load into DuckDB
-    con = duckdb.connect(str(DB))
-    con.register("df", df)
-    con.execute("DROP VIEW IF EXISTS vw_entries;")
-    con.execute("DROP TABLE IF EXISTS entries;")
-    con.execute("CREATE TABLE entries AS SELECT * FROM df;")
-    con.execute("CREATE OR REPLACE VIEW vw_entries AS SELECT * FROM entries;")
-    # index on generated keys
-    con.execute("CREATE INDEX IF NOT EXISTS idx_entries_patientid ON entries(patient_id);")
-    con.execute("CREATE INDEX IF NOT EXISTS idx_entries_clinicid  ON entries(clinic_id);")
+    with duckdb.connect(str(DB)) as con:
+        con.register("df", df)
+        con.execute("DROP VIEW IF EXISTS vw_entries;")
+        con.execute("DROP TABLE IF EXISTS entries;")
+        con.execute("CREATE TABLE entries AS SELECT * FROM df;")
+        con.execute("CREATE OR REPLACE VIEW vw_entries AS SELECT * FROM entries;")
+        # index on generated keys
+        con.execute("CREATE INDEX IF NOT EXISTS idx_entries_patientid ON entries(patient_id);")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_entries_clinicid  ON entries(clinic_id);")
 
-    total = con.execute("SELECT COUNT(*) FROM vw_entries;").fetchone()[0]
-    print(f"Rows kept: {total}")
-    con.close()
+        total = con.execute("SELECT COUNT(*) FROM vw_entries;").fetchone()[0]
+        print(f"Rows kept: {total}")
 
 if __name__ == "__main__":
     ingestion()

@@ -5,6 +5,7 @@ MODEL_CONFIG = ModelConfig()
 
 DB_FILE = Path(__file__).resolve().parents[2] / "data" / "clinic.duckdb"
 DATA_PATH = f"duckdb:///{DB_FILE.as_posix()}"
+
 EXPLAIN_PROMPT = (
     "Explain the chart you just returned in 2–3 concise sentences. "
     "State what it shows and 1 notable pattern." 

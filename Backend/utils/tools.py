@@ -9,6 +9,7 @@ import pandas as pd
 import io
 import matplotlib.pyplot as plt
 from openai import OpenAI
+from Database.db import get_engine
 
 from Backend.config.constants import DATA_PATH, DB_FILE
 
@@ -42,15 +43,20 @@ def text_to_speech(s:str) -> str:
 
 
 def build_sql_tool(llm, clinic_code, db_path=DATA_PATH):
-    con = duckdb.connect(DB_FILE.as_posix())
-    tables = con.execute("SHOW TABLES").fetchall()
     to_be_included = []
-    for (t,) in tables:
-        if t.startswith(clinic_code):
-            to_be_included.append(t)
-    con.close()
+    
+    engine = get_engine()
+    with engine.connect() as con:
+        tables = con.exec_driver_sql("SHOW TABLES").fetchall()
+        print("ALL TABLES:", tables)    
+        for (t,) in tables:
+            if t.startswith(clinic_code):
+                print("INLUDE TABLE", t)
+                to_be_included.append(t)
 
-    db = SQLDatabase.from_uri(db_path, include_tables=to_be_included)
+    print(to_be_included)
+
+    db = SQLDatabase(engine=engine, include_tables=to_be_included)
     sql_agent = create_sql_agent(llm, db=db, top_k=10)
 
     @tool("sql_query_tool")

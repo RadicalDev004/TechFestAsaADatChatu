@@ -4,6 +4,9 @@ import pandas as pd
 from pathlib import Path
 import shutil
 import re
+from sqlalchemy.engine import Connection  # optional: for typing
+from sqlalchemy import text
+from Database.db import get_engine
 
 from Database.firebaseActions import download_all_from_firebase
 
@@ -46,29 +49,77 @@ def _quote_identifier(ident: str) -> str:
 def _table_name_for(clinic_id: str, csv_path: Path) -> str:
     return f"{clinic_id}_{csv_path.stem}"
 
-def _ingest_one(con: duckdb.DuckDBPyConnection, table_name: str, csv_path: Path) -> int:
+# def _ingest_one(con: duckdb.DuckDBPyConnection, table_name: str, csv_path: Path) -> int:
+#     try:
+#         df = pd.read_csv(csv_path)
+#     except UnicodeDecodeError:
+#         df = pd.read_csv(csv_path, encoding="latin-1")
+#     except pd.errors.EmptyDataError:
+#         qname = _quote_identifier(table_name)
+#         con.execute(f"CREATE OR REPLACE TABLE {qname} AS SELECT NULL AS _empty WHERE 1=0;")
+#         return 0
+
+#     qname = _quote_identifier(table_name)
+#     if df.empty:
+#         df = _normalize_columns(df)
+#         con.register("df0", df.head(0))
+#         con.execute(f"CREATE OR REPLACE TABLE {qname} AS SELECT * FROM df0;")
+#         con.unregister("df0")
+#         return 0
+
+#     df = _normalize_columns(df)
+#     con.register("df", df)
+#     con.execute(f"CREATE OR REPLACE TABLE {qname} AS SELECT * FROM df;")
+#     con.unregister("df")
+#     return int(con.execute(f"SELECT COUNT(*) FROM {qname};").fetchone()[0])
+
+def _ingest_one(con: "Connection", table_name: str, csv_path: Path) -> int:
+    """Ingest a single CSV into DuckDB using a SQLAlchemy Connection.
+
+    - Normalizes column names to snake_case (stable & unique)
+    - Replaces the table if it exists
+    - Returns row count written
+    """
+    qname = _quote_identifier(table_name)
+
+    # 1) Read CSV with fallback encoding
     try:
         df = pd.read_csv(csv_path)
     except UnicodeDecodeError:
         df = pd.read_csv(csv_path, encoding="latin-1")
     except pd.errors.EmptyDataError:
-        qname = _quote_identifier(table_name)
-        con.execute(f"CREATE OR REPLACE TABLE {qname} AS SELECT NULL AS _empty WHERE 1=0;")
+        # Create an explicit empty table (match previous behavior)
+        con.exec_driver_sql(f"""
+            CREATE OR REPLACE TABLE {qname}
+            AS SELECT NULL AS _empty WHERE 1=0;
+        """)
         return 0
 
-    qname = _quote_identifier(table_name)
-    if df.empty:
-        df = _normalize_columns(df)
-        con.register("df0", df.head(0))
-        con.execute(f"CREATE OR REPLACE TABLE {qname} AS SELECT * FROM df0;")
-        con.unregister("df0")
-        return 0
-
+    # 2) Normalize columns (even for empty df with headers)
     df = _normalize_columns(df)
-    con.register("df", df)
-    con.execute(f"CREATE OR REPLACE TABLE {qname} AS SELECT * FROM df;")
-    con.unregister("df")
-    return int(con.execute(f"SELECT COUNT(*) FROM {qname};").fetchone()[0])
+
+    # 3) If empty -> create empty schema only (0 rows)
+    if df.empty:
+        # head(0) preserves schema without rows
+        df.head(0).to_sql(
+            name=table_name,
+            con=con,               # SQLAlchemy Connection/Engine works
+            if_exists="replace",
+            index=False,
+        )
+        return 0
+
+    # 4) Write full table (replace)
+    df.to_sql(
+        name=table_name,
+        con=con,
+        if_exists="replace",
+        index=False,
+    )
+
+    # 5) Count rows
+    count = con.exec_driver_sql(f"SELECT COUNT(*) FROM {qname};").scalar()
+    return int(count)
 
 # -------- main ingest -------- this is used after the person uploads their CSV
 def ingest_clinic_from_firebase(clinic_id: str) -> None:
@@ -84,19 +135,19 @@ def ingest_clinic_from_firebase(clinic_id: str) -> None:
         print(f"No CSV files for clinic '{clinic_id}'.")
         return
 
-    con = duckdb.connect(str(DB))
-    try:
-        for csv_path in csvs:
-            tname = _table_name_for(clinic_id, csv_path)
-            rows = _ingest_one(con, tname, csv_path)
-            print(f"Ingested {rows} rows into table: {tname}")
-    finally:
-        #output all table names
-        tables = con.execute("SHOW TABLES").fetchall()
-        print("Tables in DB:")
-        for (t,) in tables:
-            print(f"- {t}")
-        con.close()
+    engine = get_engine()
+    with engine.connect() as con:
+        try:
+            for csv_path in csvs:
+                tname = _table_name_for(clinic_id, csv_path)
+                rows = _ingest_one(con, tname, csv_path)
+                print(f"Ingested {rows} rows into table: {tname}")
+        finally:
+            #output all table names
+            tables = con.exec_driver_sql("SHOW TABLES").fetchall()
+            print("Tables in DB:")
+            for (t,) in tables:
+                print(f"- {t}")
 
 if __name__ == "__main__":
     ingest_clinic_from_firebase("test_id")

@@ -1082,6 +1082,7 @@ async function fetchFiles() {
   }
 
   function addConversation(convTitle) {
+    triggerLoad(convTitle, "Adding");
       fetch('/api/conversations', {
           method: 'POST',
           headers: {
@@ -1095,18 +1096,19 @@ async function fetchFiles() {
         }).then(result => {
             console.log('Conversations:', result);
             conversations.unshift({
-            id: result.id,
-            title: result.title,
-            messages: [
-            ]
-          });
+              id: result.id,
+              title: result.title,
+              messages: [
+              ]
+            });
+            currentIndex = 0;
+            renderConversations();
+            renderMessages();
         }).catch(err => {
           console.warn(err);
 
         }).finally(() => {
-          currentIndex = 0;
-          renderConversations();
-          renderMessages();
+          endLoad();
         })  
   }
 
