@@ -1,6 +1,5 @@
-import duckdb, secrets
+import secrets
 import os
-from pathlib import Path
 from typing import Optional
 from Backend.core.security import hash_secret, verify_secret
 import time
@@ -10,7 +9,6 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
 
-DB = Path("./data/clinic.duckdb")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",

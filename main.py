@@ -8,6 +8,7 @@ from Backend.api.uploadFile import router as upload_router
 from Backend.api.listFiles import router as list_files_router
 from starlette.responses import Response, HTMLResponse, RedirectResponse, StreamingResponse
 from Database.db_register import init_db
+from Database.db_history import init_db as init_history_db
 
 app = FastAPI(title="Clinic Auth - MVP")
 
@@ -29,6 +30,7 @@ app.include_router(list_files_router)
 # Our dynamic router
 router = Router()
 init_db()
+init_history_db()
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
