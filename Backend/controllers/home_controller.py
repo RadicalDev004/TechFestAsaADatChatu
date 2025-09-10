@@ -15,7 +15,8 @@ class HomeController:
         template_path = os.path.join(project_root, 'Frontend', 'home.html')
         with open(template_path, 'r', encoding='utf-8') as f:
             html = f.read()
-
+            
+        html = html.replace("{{clinic_name}}", session.get("clinic_name", "Clinic Name"))
         # Optional: prevent caching of protected pages
         resp = HTMLResponse(content=html, status_code=200)
         resp.headers["Cache-Control"] = "no-store"
