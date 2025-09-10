@@ -51,7 +51,7 @@ def build_sql_tool(llm, clinic_code, db_path=DATA_PATH):
     con.close()
 
     db = SQLDatabase.from_uri(db_path, include_tables=to_be_included)
-    sql_agent = create_sql_agent(llm, db=db, verbose = True, top_k=100)
+    sql_agent = create_sql_agent(llm, db=db, top_k=10)
 
     @tool("sql_query_tool")
     def run_sql(natural_language: str) -> str:
