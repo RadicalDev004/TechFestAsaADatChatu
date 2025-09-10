@@ -1,147 +1,167 @@
+# conversations_repo.py
+import os
 from dataclasses import dataclass
-from typing import Literal
-import duckdb
-from Database.db_register import DB  # DB = Path("./data/clinic.duckdb")
+from datetime import datetime
+from typing import List, Literal, Optional, Dict, Any
+from Database.db_register import Base
+from sqlalchemy import (
+    create_engine, Column, String, DateTime, func, Index, BigInteger,
+    Sequence, ForeignKey, Text
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.exc import OperationalError
 
+# ---------- Types ----------
 Role = Literal["user", "assistant"]
 
-@dataclass(frozen=True)
+@dataclass
 class ConversationDTO:
     id: int
     clinic_id: str
     title: str
-    created_at: str
+    created_at: datetime
+    messages: List[Dict[str, Any]]
 
-@dataclass(frozen=True)
-class MessageDTO:
-    id: int
-    conversation_id: int
-    role: Role
-    content: str
-    created_at: str
+# ---------- DB setup ----------
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://postgres:postgres@db:5432/postgres"
+)
 
-def ensure_tables() -> None:
-    con = duckdb.connect(str(DB))
-    try:
-        con.execute("CREATE SEQUENCE IF NOT EXISTS conversations_seq;")
-        con.execute("CREATE SEQUENCE IF NOT EXISTS messages_seq;")
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
-        con.execute("""
-        CREATE TABLE IF NOT EXISTS conversations (
-            id BIGINT PRIMARY KEY DEFAULT nextval('conversations_seq'),
-            clinic_id TEXT NOT NULL,
-            title TEXT NOT NULL DEFAULT 'New conversation',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT fk_conversations_clinic
-                FOREIGN KEY (clinic_id) REFERENCES clinics(clinic_id)
-        );
-        """)
+# ---------- Model ----------
+class Conversation(Base):
+    __tablename__ = "conversations"
 
-        con.execute("CREATE INDEX IF NOT EXISTS idx_conversations_clinic ON conversations(clinic_id);")
-        con.execute("CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations(created_at);")
+    id = Column(BigInteger, Sequence("conversations_seq"), primary_key=True)
+    clinic_id = Column(String(6), ForeignKey("clinics.clinic_id"), nullable=False)
+    title = Column(Text, nullable=False, server_default="New conversation")
+    # ✅ store messages as JSONB (list of {"role":..., "content":...})
+    messages = Column(MutableList.as_mutable(JSONB), nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-        con.execute("""
-        CREATE TABLE IF NOT EXISTS messages (
-            id BIGINT PRIMARY KEY DEFAULT nextval('messages_seq'),
-            conversation_id BIGINT NOT NULL,
-            role TEXT NOT NULL CHECK (role IN ('user','assistant')),
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT fk_messages_conversation
-                FOREIGN KEY (conversation_id) REFERENCES conversations(id)
-        );
-        """)
+    __table_args__ = (
+        Index("idx_conversations_clinic", "clinic_id"),
+        Index("idx_conversations_created", "created_at"),
+    )
 
-        con.execute("CREATE INDEX IF NOT EXISTS idx_messages_convo ON messages(conversation_id);")
-        con.execute("CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);")
-    finally:
-        con.close()
+# ---------- Init ----------
+def init_db(max_retries: int = 30, delay_seconds: float = 1.0) -> None:
+    import time
+    for attempt in range(1, max_retries + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except OperationalError:
+            if attempt == max_retries:
+                raise
+            time.sleep(delay_seconds)
 
+# ---------- CRUD ----------
+def list_messages(conversation_id: int) -> list[dict]:
+    with SessionLocal() as session:
+        row = (
+            session.query(
+                Conversation.id,
+                Conversation.messages,
+                Conversation.created_at,
+            )
+            .filter(Conversation.id == conversation_id)
+            .one_or_none()
+        )
+        if not row:
+            return []
+
+        msgs = row.messages or []
+        return [
+            {
+                "id": i,  # synthetic index
+                "conversation_id": conversation_id,
+                "role": m.get("role"),
+                "content": m.get("content", ""),
+                "created_at": row.created_at,
+            }
+            for i, m in enumerate(msgs, start=1)
+        ]
 
 def create_conversation(clinic_id: str, title: str = "New conversation") -> int:
-    ensure_tables()
-    con = duckdb.connect(str(DB))
-    try:
-        row = con.execute(
-            "INSERT INTO conversations (clinic_id, title) VALUES (?, ?) RETURNING id;",
-            [clinic_id, title.strip() or "New conversation"],
-        ).fetchone()
-        return int(row[0])
-    finally:
-        con.close()
+    safe_title = (title or "").strip() or "New conversation"
+    with SessionLocal.begin() as session:
+        obj = Conversation(clinic_id=clinic_id, title=safe_title, messages=[])
+        session.add(obj)
+        session.flush()  # assigns PK
+        return obj.id
 
-def list_conversations(clinic_id: str) -> list[ConversationDTO]:
-    con = duckdb.connect(str(DB))
-    try:
-        rows = con.execute("""
-            SELECT id, clinic_id, title, created_at
-            FROM conversations
-            WHERE clinic_id = ?
-            ORDER BY created_at DESC;
-        """, [clinic_id]).fetchall()
-        return [ConversationDTO(*r) for r in rows]
-    finally:
-        con.close()
+def list_conversations(clinic_id: str) -> List[ConversationDTO]:
+    with SessionLocal() as session:
+        rows = (
+            session.query(Conversation)
+            .filter(Conversation.clinic_id == clinic_id)
+            .order_by(Conversation.updated_at.desc())
+            .all()
+        )
+        return [
+            ConversationDTO(
+                id=r.id,
+                clinic_id=r.clinic_id,
+                title=r.title,
+                created_at=r.created_at,
+                messages=r.messages or [],
+            )
+            for r in rows
+        ]
 
-def get_conversation(conversation_id: int, clinic_id: str) -> ConversationDTO | None:
-    con = duckdb.connect(str(DB))
-    try:
-        row = con.execute("""
-            SELECT id, clinic_id, title, created_at
-            FROM conversations
-            WHERE id = ? AND clinic_id = ?
-            LIMIT 1;
-        """, [conversation_id, clinic_id]).fetchone()
-        return ConversationDTO(*row) if row else None
-    finally:
-        con.close()
+def get_conversation(conversation_id: int, clinic_id: str) -> Optional[ConversationDTO]:
+    with SessionLocal() as session:
+        r = (
+            session.query(Conversation)
+            .filter(Conversation.id == conversation_id, Conversation.clinic_id == clinic_id)
+            .one_or_none()
+        )
+        if not r:
+            return None
+        return ConversationDTO(
+            id=r.id,
+            clinic_id=r.clinic_id,
+            title=r.title,
+            created_at=r.created_at,
+            messages=r.messages or [],
+        )
 
 def rename_conversation(conversation_id: int, clinic_id: str, new_title: str) -> None:
-    con = duckdb.connect(str(DB))
-    try:
-        con.execute("""
-            UPDATE conversations
-            SET title = ?
-            WHERE id = ? AND clinic_id = ?;
-        """, [new_title.strip() or "New conversation", conversation_id, clinic_id])
-    finally:
-        con.close()
+    safe_title = (new_title or "").strip() or "New conversation"
+    with SessionLocal.begin() as session:
+        r = (
+            session.query(Conversation)
+            .filter(Conversation.id == conversation_id, Conversation.clinic_id == clinic_id)
+            .one_or_none()
+        )
+        if r:
+            r.title = safe_title
 
 def delete_conversation(conversation_id: int, clinic_id: str) -> None:
-    con = duckdb.connect(str(DB))
-    try:
-        con.execute("DELETE FROM messages WHERE conversation_id = ?;", [conversation_id])
-        con.execute("DELETE FROM conversations WHERE id = ? AND clinic_id = ?;", [conversation_id, clinic_id])
-    finally:
-        con.close()
+    with SessionLocal.begin() as session:
+        session.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.clinic_id == clinic_id
+        ).delete()
 
-def add_message(conversation_id: int, role: Role, content: str) -> int:
+def add_message(conversation_id: int, clinic_id: str, role: Role, content: str) -> None:
     if role not in ("user", "assistant"):
         raise ValueError("role must be 'user' or 'assistant'")
-    con = duckdb.connect(str(DB))
-    try:
-        row = con.execute("""
-            INSERT INTO messages (conversation_id, role, content)
-            VALUES (?, ?, ?)
-            RETURNING id;
-        """, [conversation_id, role, content]).fetchone()
-        return int(row[0])
-    finally:
-        con.close()
-
-def list_messages(conversation_id: int) -> list[MessageDTO]:
-    con = duckdb.connect(str(DB))
-    try:
-        rows = con.execute("""
-            SELECT id, conversation_id, role, content, created_at
-            FROM messages
-            WHERE conversation_id = ?
-            ORDER BY created_at ASC;
-        """, [conversation_id]).fetchall()
-        return [MessageDTO(*r) for r in rows]
-    finally:
-        con.close()
-
-def title_from_text(text: str, max_words: int = 8) -> str:
-    words = (text or "").strip().split()
-    return " ".join(words[:max_words]) if words else "New conversation"
+    with SessionLocal.begin() as session:
+        r = (
+            session.query(Conversation)
+            .filter(Conversation.id == conversation_id, Conversation.clinic_id == clinic_id)
+            .one_or_none()
+        )
+        if not r:
+            return
+        msgs = r.messages or []
+        msgs.append({"role": role, "content": content})
+        r.messages = msgs  # reassign to mark dirty (MutableList also tracks append)

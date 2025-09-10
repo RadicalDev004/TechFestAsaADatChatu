@@ -2,23 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from typing import Annotated
 from Backend.config.constants import MODEL_CONFIG, PROMPT_CONFIG, EXPLAIN_PROMPT
 from Backend.services.chatbot_service import create_agent
-from Database.db_history import (
-    ensure_tables,
-    create_conversation,
-    list_conversations,
-    get_conversation,
-    delete_conversation,
-    add_message,
-    list_messages,
-    title_from_text,
-    rename_conversation,
-)
-from Backend.models.schemas import (
-    ConversationOut,
-    MessageIn,
-    MessageOut,
-    ConversationWithMessages,
-)
 from Backend.core.deps import get_current_clinic
 from Backend.utils.tools import bots, is_image
 from Database.firebaseActions import upload_to_firebase, download_from_firebase, download_all_from_firebase, delete_from_firebase, get_download_url
